@@ -58,12 +58,12 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     rclcpp::Node("bevdet_node", node_options),
     BEVDet(),
     sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_fl_(this, "/CAM_FRONT_LEFT",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_f_ (this, "/CAM_FRONT",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_fr_(this, "/CAM_FRONT_RIGHT", rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_bl_(this, "/CAM_BACK_LEFT",   rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_b_(this,   "/CAM_BACK",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_br_(this, "/CAM_BACK_RIGHT",  rclcpp::QoS{1}.get_rmw_qos_profile())
+    sub_img_fl_(this, "/CAM_FRONT_LEFT/image_raw",  rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_f_ (this, "/CAM_FRONT/image_raw",       rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_fr_(this, "/CAM_FRONT_RIGHT/image_raw", rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_bl_(this, "/CAM_BACK_LEFT/image_raw",   rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_b_(this,   "/CAM_BACK/image_raw",       rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_br_(this, "/CAM_BACK_RIGHT/image_raw",  rclcpp::QoS{1}.get_rmw_qos_profile())
 {
     // getRosParams()
     pkg_path_ = "/home/antonio/Projects/bevdet_ros";
@@ -122,9 +122,9 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
         "output/object", rclcpp::QoS{1});
 
     // test
-    timer_ = this->create_wall_timer(
-            500ms, std::bind(&ROS_Node::timer_callback, this)
-    );
+    // timer_ = this->create_wall_timer(
+    //         500ms, std::bind(&ROS_Node::timer_callback, this)
+    // );
 }
 
 ROS_Node::~ROS_Node(){
@@ -158,6 +158,25 @@ void ROS_Node::callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg
 {
     RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "pcl & imgs sync callback");
 
+    pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>);
+
+    pcl::fromROSMsg(*msg_cloud, *cloud);
+
+    cv::Mat img_fl, img_f, img_fr, img_bl, img_b, img_br;
+    std::vector<cv::Mat> imgs;
+    img_fl = cv_bridge::toCvShare(img_fl_msg , "bgr8")->image;
+    img_f  = cv_bridge::toCvShare(img_f_msg, "bgr8")->image;
+    img_fr = cv_bridge::toCvShare(img_fr_msg, "bgr8")->image;
+    img_bl = cv_bridge::toCvShare(img_bl_msg , "bgr8")->image;
+    img_b  = cv_bridge::toCvShare(img_b_msg, "bgr8")->image;
+    img_br = cv_bridge::toCvShare(img_br_msg, "bgr8")->image;
+
+    imgs.emplace_back(img_fl);
+    imgs.emplace_back(img_f);
+    imgs.emplace_back(img_fr);
+    imgs.emplace_back(img_bl);
+    imgs.emplace_back(img_b);
+    imgs.emplace_back(img_br);
 
 
     // std::vector<Box> ego_boxes;
@@ -168,6 +187,22 @@ void ROS_Node::callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg
     // TODO: pub outputs
 
     // TODO: test: stitch 6 img and publish
+    std::vector<std::vector<char>> imgs_data;
+    cvImgToArr(imgs, imgs_data);
+
+    cv::Mat img_stitched = cv::Mat(900*6, 1600, CV_8UC3, (void *)std::data(imgs_data));
+
+    //create ROS2 messages
+    sensor_msgs::msg::Image _img_msg;
+    std_msgs::msg::Header _header;
+    cv_bridge::CvImage _cv_bridge;
+    _header.stamp = this->get_clock() -> now();
+    _cv_bridge = cv_bridge::CvImage(_header, sensor_msgs::image_encodings::BGR8, img_stitched);
+    _cv_bridge.toImageMsg(_img_msg);
+
+    //publish
+    stitched_img_pub_ -> publish(_img_msg);
+    
 }
 
 // test

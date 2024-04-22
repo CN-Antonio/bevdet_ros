@@ -53,6 +53,10 @@ if(rclcpp_FOUND)
     rclcpp
     message_filters
     sensor_msgs
+
+    pcl_conversions
+    pcl_ros 
+    cv_bridge
   )
 
   foreach (dependency IN LISTS DEPENDENCIES)
@@ -72,6 +76,9 @@ find_package(Eigen3 REQUIRED)
 
 # OpenCV
 find_package(OpenCV REQUIRED)
+
+# PCL
+find_package(PCL REQUIRED)
 
 # Nvidia #
 find_package(CUDA REQUIRED)
@@ -97,6 +104,8 @@ include_directories(
   include
   ${YAML_CPP_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
+  ${OpenCV_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
   # ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   # ${TENSORRT_INCLUDE_DIRS}
@@ -106,7 +115,8 @@ include_directories(
 
 link_directories(
   # ${CMAKE_CUDA_INCLUDE_DIRS}
-	${TENSORRT_LIBRARY_DIRS}
+	${OpenCV_LIBRARY_DIRS}
+  ${TENSORRT_LIBRARY_DIRS}
 )
 
 ### ?
@@ -131,10 +141,14 @@ cuda_add_executable(${PROJECT_NAME}_node
   src/bevdet_node.cpp
 
   src/bevdet/bevdet.cpp
+
+  src/test.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_node
-  yaml-cpp  
+  yaml-cpp 
+  ${OpenCV_LIBS}
+  ${PCL_LIBRARIES}
   # libnvinfer.so
 )
 
@@ -147,6 +161,11 @@ target_link_libraries(${PROJECT_NAME}_node
 
 # target_link_libraries(${PROJECT_NAME}_demo
 #   # libnvinfer.so
+# )
+
+# Test
+# add_executable(${PROJECT_NAME}_test
+#   src/CompressedImageTest.cpp
 # )
 
 ### ROS2 ###

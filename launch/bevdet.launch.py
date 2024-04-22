@@ -4,19 +4,19 @@ import launch_ros.actions
 
 def generate_launch_description():
     ld = launch.LaunchDescription([
-        # flashocc
+        # bevdet
         launch.actions.DeclareLaunchArgument(
             name='config',
             default_value='config/flashocc.yaml',       # To Modify
-            description='flashocc config yaml file'
+            description='bevdet config yaml file'
         ),
 
         # lauch occdet
         launch_ros.actions.Node(
-            package='flashocc',
-            namespace='flashocc', 
-            executable='flashocc_node',
-            name='flashocc_node_1',
+            package='bevdet',
+            namespace='bevdet', 
+            executable='bevdet_node',
+            name='bevdet_node_1',
             parameters=[{
                 'config': launch.substitutions.LaunchConfiguration('config'),
             }],

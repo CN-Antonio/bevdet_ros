@@ -16,6 +16,9 @@ ROS related .h file
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 
+#include <cv_bridge/cv_bridge.h>
+#include <pcl_conversions/pcl_conversions.h>  // rosmsg2pcl
+
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h> // sync 6 cam imgs
 #include <message_filters/sync_policies/approximate_time.h> // 时间相近同步
@@ -78,5 +81,9 @@ private:
     rclcpp::TimerBase::SharedPtr timer_;
     void timer_callback();
 };
+
+int cvToArr(cv::Mat img, std::vector<char> &raw_data);
+int cvImgToArr(std::vector<cv::Mat> &imgs, std::vector<std::vector<char>> &imgs_data);
+
 
 #endif // __BEVDET_NODE_H__

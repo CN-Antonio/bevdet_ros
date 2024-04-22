@@ -8,6 +8,17 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include <opencv2/opencv.hpp>
+
+#include <pcl/io/pcd_io.h>
+// #include <pcl/point_types.h>
+// #include <pcl/visualization/cloud_viewer.h>
+// #include <pcl/common/transforms.h>
+
+// #include "iou3d_nms.h"
+
+typedef pcl::PointXYZI PointT;
+
 class BEVDet
 {
 public:
