@@ -67,45 +67,65 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
 {
     // getRosParams()
     pkg_path_ = "/home/antonio/Projects/bevdet_ros";
-    std::string config_path = pkg_path_ + "/config/bevdet/config.yaml";
+    std::string config_path = pkg_path_ + "/" + "config/bevdet/config.yaml";
     // config_path = declare_parameter<std::string>("config1", "flashocc.yaml");
     // this->get_parameter("config", config_file);  // TODO: replace with "declare_parameter"
     RCLCPP_INFO(this->get_logger(), "config_filePath: %s", config_path.c_str());
 
-    // BEVDet config yaml //
+    // BEVDet ./configure.yaml //
     config_ = YAML::LoadFile(config_path);
 
-    img_N_ = config_["N"].as<size_t>();  // 图片数量 6
-    img_w_ = config_["W"].as<int>();        // H: 900
-    img_h_ = config_["H"].as<int>();        // W: 1600
-
+    // TODO BEGIN: read from yaml file
     // 模型配置文件路径 
     model_config_ = pkg_path_ + "/" + config_["ModelConfig"].as<std::string>();
+
+    img_N_ = config_["N"].as<size_t>();     // 图片数量 6
+    img_w_ = config_["W"].as<int>();        // W: 1600    
+    img_h_ = config_["H"].as<int>();        // H: 900
+    // TODO: remove nuscenes yaml part
+    sample_ = config_["sample"];
+    for(auto file : sample_)
+    {
+        imgs_file_.push_back(pkg_path_ +"/"+ file.second.as<std::string>());
+        imgs_name_.push_back(file.first.as<std::string>()); 
+    }
     
-    // 权重文件路径 图像部分 bev部分
-    imgstage_file_ =pkg_path_ + "/" +  config_["ImgStageEngine"].as<std::string>();
-    bevstage_file_ =pkg_path_ +"/" +  config_["BEVStageEngine"].as<std::string>();
-    
-    // 相机的内参配置参数
+    // 相机的内外参配置参数
     camconfig_ = YAML::LoadFile(pkg_path_ +"/" + config_["CamConfig"].as<std::string>()); 
     // 结果保存文件
-    output_lidarbox_ = pkg_path_ +"/" + config_["OutputLidarBox"].as<std::string>();
+    // output_lidarbox_ = pkg_path_ +"/" + config_["OutputLidarBox"].as<std::string>();
+
+    // 权重文件路径+名称 图像部分 bev部分
+    imgstage_file =pkg_path_ + "/" +  config_["ImgStageEngine"].as<std::string>();
+    bevstage_file =pkg_path_ +"/" +  config_["BEVStageEngine"].as<std::string>();
+    // TODO END
+
+    // 读取图像参数
+    sampleData_.param = camParams(camconfig_, img_N_, imgs_name_);
+    cams_intrin = sampleData_.param.cams_intrin; 
+    cams2ego_rot = sampleData_.param.cams2ego_rot;
+    cams2ego_trans =  sampleData_.param.cams2ego_trans;
+
+    // private var
+    InitParams(model_config_);    // in cfgs/*.yaml
 
     // Log config
-    // RCLCPP_INFO(this->get_logger(), "Image: %dx%dx%d", img_N_, img_w_, img_h_);
-    RCLCPP_INFO(this->get_logger(), "Image: %dx%dx%d\nmodel_config_: %s\n stage: %s, %s\n",
-        img_N_, img_w_, img_h_,
-        model_config_.c_str(),
-        imgstage_file_.c_str(), bevstage_file_.c_str()
-        );
+    RCLCPP_INFO(this->get_logger(), "\033[32m Image: %dx%dx%d \033[0m", img_N_, img_w_, img_h_);
+    RCLCPP_INFO(this->get_logger(), "\033[32m model_config_: %s \033[0m", model_config_.c_str());
+    RCLCPP_INFO(this->get_logger(), "\033[32m stage: %s, %s \033[0m", imgstage_file.c_str(), bevstage_file.c_str());
     
+    /* TODO: init TRT engine */
+    // 初始化视角转换
+    InitViewTransformer();
 
-    
-    
-    // TODO: init TRT engine and pending
+    // 初始化推理引擎
+    InitEngine(imgstage_file, bevstage_file); // FIXME
+    MallocDeviceMemory();
+
     // gpu分配内参， cuda上分配6张图的大小 每个变量sizeof(uchar)个字节，并用imgs_dev指向该gpu上内存, sizeof(uchar) =1
-    // CHECK_CUDA(cudaMalloc((void**)&imgs_dev_, img_N_ * 3 * img_w_ * img_h_ * sizeof(uchar)));
+    CHECK_CUDA(cudaMalloc((void**)&imgs_dev_, img_N_ * 3 * img_w_ * img_h_ * sizeof(uchar)));
 
+    // ROS2 Sub&Pub //
     sync_queue_size_ = declare_parameter<int>("sync_queue_size", 60);   // 10 for each img
     // Create publishers and subscribers
     using std::placeholders::_1;using std::placeholders::_2;
@@ -129,23 +149,6 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
 
 ROS_Node::~ROS_Node(){
     RCLCPP_INFO(rclcpp::get_logger("flashocc_node"), "Destructing ROS_Node");
-}
-
-void ROS_Node::Callback_imgs(
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_f_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_fr_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_b_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_bl_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_br_msg)
-{
-    RCLCPP_INFO(rclcpp::get_logger("flashocc_node"), "imgs sync callback");
-    
-    // TODO: flashocc DoInfer
-    
-    // TODO: pub outputs
-
-    // TODO: test: stitch 6 img and publish
 }
 
 void ROS_Node::callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
@@ -178,19 +181,23 @@ void ROS_Node::callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg
     imgs.emplace_back(img_b);
     imgs.emplace_back(img_br);
 
+    // vconcat 6 imgs
+    // TODO: cuda/nvjpeg process?
+    cv::Mat img_stitched;
+    cv::vconcat(imgs, img_stitched);
 
-    // std::vector<Box> ego_boxes;
-    // ego_boxes.clear();
+    std::vector<Box> ego_boxes;
+    ego_boxes.clear();
     // TODO: flashocc DoInfer
-    this->DoInfer();
+    DoInfer();
     
     // TODO: pub outputs
+    // Egobox2Lidarbox();
+    // box.publish();
 
-    // TODO: test: stitch 6 img and publish
-    std::vector<std::vector<char>> imgs_data;
-    cvImgToArr(imgs, imgs_data);
-
-    cv::Mat img_stitched = cv::Mat(900*6, 1600, CV_8UC3, (void *)std::data(imgs_data));
+    // TODO: test: publish stitched 6 img
+    // std::vector<std::vector<char>> imgs_data;
+    // cvImgToArr(imgs, imgs_data);
 
     //create ROS2 messages
     sensor_msgs::msg::Image _img_msg;
@@ -213,6 +220,8 @@ void ROS_Node::timer_callback()
     auto message = std_msgs::msg::String();
     message.data = "Hello_World: " + std::to_string(timer_count_);
     RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
+
+    DoInfer();
 
     timer_count_++;
 }

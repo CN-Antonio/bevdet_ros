@@ -20,7 +20,8 @@ if(NOT CMAKE_CXX_STANDARD)
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  # add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wextra -Wpedantic)
 endif()
 
 
@@ -86,6 +87,14 @@ find_package(CUDA REQUIRED)
 set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
 set(CUDA_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/include)
 
+if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL  "aarch64")
+  set(TENSORRT_INCLUDE_DIRS /usr/include/aarch64-linux-gnu/)
+  set(TENSORRT_LIBRARY_DIRS /usr/lib/aarch64-linux-gnu/)
+elseif(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  set(TENSORRT_INCLUDE_DIRS /home/antonio/Downloads/TensorRT-8.5.3.1/include)
+  set(TENSORRT_LIBRARY_DIRS /home/antonio/Downloads/TensorRT-8.5.3.1/lib)
+endif()
+
 # release
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}
   -ccbin ${CMAKE_CXX_COMPILER}"
@@ -102,11 +111,13 @@ set(CUDA_LIB_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/lib)
 
 include_directories(
   include
+  include/bevdet
   ${YAML_CPP_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
+  ${TENSORRT_INCLUDE_DIRS}
   # ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
   # ${TENSORRT_INCLUDE_DIRS}
   
@@ -142,21 +153,24 @@ cuda_add_executable(${PROJECT_NAME}_node
 
   src/bevdet/bevdet.cpp
 
-  src/test.cpp
+  src/bevdet/data.cpp
+
+  src/bevdet/postprocess.cu
+  src/bevdet/iou3d_nms.cu
+
+  # src/test.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_node
   yaml-cpp 
   ${OpenCV_LIBS}
   ${PCL_LIBRARIES}
-  # libnvinfer.so
+  libnvinfer.so
 )
 
 # none ROS demo
 # cuda_add_executable(${PROJECT_NAME}_demo
 #   src/bevdet_demo.cpp
-
-#   # src/flashocc/flashocc.cpp
 # )
 
 # target_link_libraries(${PROJECT_NAME}_demo

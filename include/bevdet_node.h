@@ -57,15 +57,6 @@ private:
         sensor_msgs::msg::Image, sensor_msgs::msg::Image>;
     using Sync = message_filters::Synchronizer<SyncPolicy>;
     typename std::shared_ptr<Sync> sync_ptr_;
-    
-    void Callback_imgs(//const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_f_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_fr_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_b_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_bl_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_br_msg
-    );
 
     void callback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
         const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
