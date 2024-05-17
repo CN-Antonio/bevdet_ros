@@ -3,8 +3,8 @@
 
 #include <vector>
 
-#include "bevdet/iou3d_nms.h"
-#include "bevdet/common.h"
+#include "iou3d_nms.h"
+#include "common.h"
 
 
 class PostprocessGPU{

@@ -4,6 +4,15 @@ import launch_ros.actions
 
 def generate_launch_description():
     ld = launch.LaunchDescription([
+        # TODO: sub topics
+        launch.actions.DeclareLaunchArgument(
+            name='fl_cam_topic',
+            default_value='/CAM_FRONT_LEFT/image_raw',
+            description='front left camera topic'
+        ),
+
+        # TODO: pub topic (MarkerArray)
+
         # bevdet
         launch.actions.DeclareLaunchArgument(
             name='config',
@@ -13,9 +22,9 @@ def generate_launch_description():
 
         # lauch occdet
         launch_ros.actions.Node(
-            package='bevdet',
-            namespace='bevdet', 
-            executable='bevdet_node',
+            package='bevdet_ros',
+            namespace='bevdet_ros', 
+            executable='bevdet_ros_node',
             name='bevdet_node_1',
             parameters=[{
                 'config': launch.substitutions.LaunchConfiguration('config'),

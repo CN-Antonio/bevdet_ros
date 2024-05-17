@@ -1,4 +1,4 @@
-#include "bevdet_node.h"
+#include "test.h"
 
 // 添加从opencv的Mat转换到std::vector<char>的函数 读取图像 cv2data 
 int cvToArr(cv::Mat img, std::vector<char> &raw_data)
@@ -27,4 +27,16 @@ int cvImgToArr(std::vector<cv::Mat> &imgs, std::vector<std::vector<char>> &imgs_
         }
     }
     return EXIT_SUCCESS;
+}
+
+// test
+void ROS_Node::timer_callback()
+{
+    if(timer_count_>999) timer_count_=0;
+
+    auto message = std_msgs::msg::String();
+    message.data = "Hello_World: " + std::to_string(timer_count_);
+    RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
+
+    timer_count_++;
 }

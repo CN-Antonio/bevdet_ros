@@ -21,7 +21,7 @@ endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # add_compile_options(-Wall -Wextra -Wpedantic)
-  add_compile_options(-Wextra -Wpedantic)
+  add_compile_options(-w) # only output error, ignore warining
 endif()
 
 
@@ -54,10 +54,12 @@ if(rclcpp_FOUND)
     rclcpp
     message_filters
     sensor_msgs
+    geometry_msgs
+    visualization_msgs
 
+    cv_bridge
     pcl_conversions
     pcl_ros 
-    cv_bridge
   )
 
   foreach (dependency IN LISTS DEPENDENCIES)
@@ -84,6 +86,8 @@ find_package(PCL REQUIRED)
 # Nvidia #
 find_package(CUDA REQUIRED)
 
+set(GENCODE ${GENCODE} -gencode arch=compute_75,code=sm_75)
+# set(GENCODE ${GENCODE} -gencode arch=compute_75,code=compute_75)
 set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
 set(CUDA_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/include)
 
@@ -99,7 +103,8 @@ endif()
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}
   -ccbin ${CMAKE_CXX_COMPILER}"
 )
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O0 -Xcompiler -fPIC -g -w -gencode=arch=compute_61,code=sm_61")
+# set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O0 -Xcompiler -fPIC -g -w -gencode=arch=compute_61,code=sm_61")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O0 -Xcompiler -fPIC -g -w -gencode=arch=compute_75,code=sm_75")
 
 # debug
 if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
@@ -110,8 +115,9 @@ endif()
 set(CUDA_LIB_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/lib)
 
 include_directories(
-  include
-  include/bevdet
+  ${PROJECT_SOURCE_DIR}/include
+  ${PROJECT_SOURCE_DIR}/include/bevdet
+
   ${YAML_CPP_INCLUDE_DIRS}
   ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
@@ -119,14 +125,11 @@ include_directories(
   ${CUDA_INCLUDE_DIRS}
   ${TENSORRT_INCLUDE_DIRS}
   # ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  # ${TENSORRT_INCLUDE_DIRS}
-  
-  ${PROJECT_SOURCE_DIR}/include
 )
 
 link_directories(
-  # ${CMAKE_CUDA_INCLUDE_DIRS}
 	${OpenCV_LIBRARY_DIRS}
+  # ${CMAKE_CUDA_INCLUDE_DIRS}
   ${TENSORRT_LIBRARY_DIRS}
 )
 
@@ -151,21 +154,25 @@ endif()
 cuda_add_executable(${PROJECT_NAME}_node
   src/bevdet_node.cpp
 
-  src/bevdet/bevdet.cpp
-
-  src/bevdet/data.cpp
-
-  src/bevdet/postprocess.cu
+  src/bevdet/bevdet.cpp 
+  src/bevdet/preprocess.cu 
+  src/bevdet/bevpool.cu 
   src/bevdet/iou3d_nms.cu
+  src/bevdet/postprocess.cu
+  src/bevdet/data.cpp
+  src/bevdet/grid_sampler.cu
+  src/bevdet/cpu_jpegdecoder.cpp
+  src/bevdet/nvjpegdecoder.cpp
 
-  # src/test.cpp
+  src/test.cpp
 )
 
 target_link_libraries(${PROJECT_NAME}_node
   yaml-cpp 
-  ${OpenCV_LIBS}
-  ${PCL_LIBRARIES}
   libnvinfer.so
+  libjpeg.so
+  ${OpenCV_LIBS}
+  # ${PCL_LIBRARIES}
 )
 
 # none ROS demo
@@ -177,20 +184,18 @@ target_link_libraries(${PROJECT_NAME}_node
 #   # libnvinfer.so
 # )
 
-# Test
-# add_executable(${PROJECT_NAME}_test
-#   src/CompressedImageTest.cpp
-# )
-
 ### ROS2 ###
 if(rclcpp_FOUND)
-  ament_target_dependencies(${PROJECT_NAME}_node 
+  ament_target_dependencies(
+    ${PROJECT_NAME}_node 
+
     rclcpp
     ${DEPENDENCIES}
   )
 
   install(TARGETS
     ${PROJECT_NAME}_node
+
     DESTINATION lib/${PROJECT_NAME}
   )
 

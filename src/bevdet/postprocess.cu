@@ -199,7 +199,7 @@ void PostprocessGPU::DoPostprocess(void ** const bev_buffer, std::vector<Box>& o
         CHECK_CUDA(cudaMemcpy(cls_host, cls_dev, map_size * sizeof(float), 
                                                                     cudaMemcpyDeviceToHost));
 
-
+        out_detections.clear();
         for (auto j = 0; j < box_num_post; j++) {
             int k = keep_data_host[j];
             int idx = sorted_indices_host[k];
