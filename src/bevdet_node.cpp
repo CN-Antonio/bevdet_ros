@@ -1,54 +1,28 @@
 #include "bevdet_node.h"
 #include "test.h"
 
-#ifdef ROS2_FOUND
-std::mutex g_mtx;
-std::condition_variable g_cv;
-#endif
-
-static void sigHandler(int sig)
-{
-    RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "Node is stopping.....");
-#ifdef ROS_FOUND
-    ros::shutdown();
-#elif ROS2_FOUND
-    g_cv.notify_all();
-#endif
-}
-
 int main(int argc, char **argv)
 {
-    signal(SIGINT, sigHandler);  ///< bind ctrl+c signal with the sigHandler function
-
-#ifdef DEBUG
-    for(int i=0; i<argc; i++){
-        std::cout<< "argv["<<i<<"]: " <<argv[i] <<std::endl;
-    }
-#endif
-
 #ifdef ROS_FOUND
 #elif ROS2_FOUND
     rclcpp::init(argc, argv);
-    // rclcpp::executors::SingleThreadedExecutor executor;
+    rclcpp::executors::MultiThreadedExecutor executor;
 #endif
 
     /* main function BEGIN */
-    std::shared_ptr<ROS_Node> demo_ptr = std::make_shared<ROS_Node>(
+    // std::shared_ptr<ROS_Node> demo_ptr = std::make_shared<ROS_Node>(
+    //     rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
+    // );
+    auto node = std::make_shared<ROS_Node>(
         rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
     );
-    // Gets config file from ros parameter ~config
-    // demo_ptr->get_parameter();
 
-    rclcpp::spin(demo_ptr);
+    executor.add_node(node);
+    executor.spin();
+    executor.remove_node(node);
+
+    // rclcpp::spin(demo_ptr);
     /* main function END */
-
-    // for loop run
-#ifdef ROS_FOUND
-    ros::spin();
-#elif ROS2_FOUND
-    std::unique_lock<std::mutex> lck(g_mtx);
-    g_cv.wait(lck);
-#endif
 
     return 0;
 }
@@ -109,21 +83,25 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     rclcpp::Node("bevdet_node", node_options),
     BEVDet(),
     sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_fl_(this, "/CAM_FRONT_LEFT/image_rect_compressed",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_f_ (this, "/CAM_FRONT/image_rect_compressed",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_fr_(this, "/CAM_FRONT_RIGHT/image_rect_compressed", rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_bl_(this, "/CAM_BACK_LEFT/image_rect_compressed",   rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_b_(this,   "/CAM_BACK/image_rect_compressed",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_br_(this, "/CAM_BACK_RIGHT/image_rect_compressed",  rclcpp::QoS{1}.get_rmw_qos_profile())
+    sub_img_fl_(this, "/CAM_FRONT_LEFT/image_raw",  rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_f_ (this, "/CAM_FRONT/image_raw",       rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_fr_(this, "/CAM_FRONT_RIGHT/image_raw", rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_bl_(this, "/CAM_BACK_LEFT/image_raw",   rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_b_(this,   "/CAM_BACK/image_raw",       rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_img_br_(this, "/CAM_BACK_RIGHT/image_raw",  rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_cpimg_fl_(this, "/CAM_FRONT_LEFT/image_rect_compressed",  rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_cpimg_f_ (this, "/CAM_FRONT/image_rect_compressed",       rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_cpimg_fr_(this, "/CAM_FRONT_RIGHT/image_rect_compressed", rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_cpimg_bl_(this, "/CAM_BACK_LEFT/image_rect_compressed",   rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_cpimg_b_(this,   "/CAM_BACK/image_rect_compressed",       rclcpp::QoS{1}.get_rmw_qos_profile()),
+    sub_cpimg_br_(this, "/CAM_BACK_RIGHT/image_rect_compressed",  rclcpp::QoS{1}.get_rmw_qos_profile())
 {
-    // getRosParams()
-    // config_path = declare_parameter<std::string>("config1", "flashocc.yaml");
-    // this->get_parameter("config", config_file);  // TODO: replace with "declare_parameter"
-    // RCLCPP_INFO(this->get_logger(), "config_filePath: %s", config_path.c_str());
-
-    // =================== configure.yaml
-    config_file = "src/bevdet_ros/config/bevdet/configure.yaml";
+    // get launch config
+    this->get_parameter("configure", config_file);
+    this->get_parameter("imgstage", imgstage_file);
+    this->get_parameter("bevstage", bevstage_file);
     RCLCPP_INFO(this->get_logger(), "config_filePath: %s", config_file.c_str());
+    
     // TODO BEGIN: read from yaml file
     YAML::Node config = YAML::LoadFile(config_file);
     
@@ -144,8 +122,8 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     }
 
     // 模型配置文件路径 
-    imgstage_file = config["ImgStageEngine"].as<std::string>();
-    bevstage_file = config["BEVStageEngine"].as<std::string>();
+    // imgstage_file = config["ImgStageEngine"].as<std::string>();
+    // bevstage_file = config["BEVStageEngine"].as<std::string>();
 
     // =============  bevdet_lt_depth.yaml
     config_file = config["ModelConfig"].as<std::string>(); //"src/bevdet_ros/config/bevdet/cfgs/bevdet_lt_depth.yaml";
@@ -178,13 +156,21 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     using std::placeholders::_1;using std::placeholders::_2;
     using std::placeholders::_3;using std::placeholders::_4;
     using std::placeholders::_5;using std::placeholders::_6;
-    using std::placeholders::_7;
+    // using std::placeholders::_7;
     sync_ptr_ = std::make_shared<Sync>(SyncPolicy(sync_queue_size_), 
-        sub_cloud_top_,
+        // sub_cloud_top_,
         sub_img_fl_, sub_img_f_, sub_img_fr_,
         sub_img_b_, sub_img_bl_, sub_img_br_);
     sync_ptr_->registerCallback(
-        std::bind(&ROS_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
+        std::bind(&ROS_Node::callback, this, _1, _2, _3, _4, _5, _6));
+    // Compressed
+    // sync_cp_ptr_ = std::make_shared<SyncCp>(SyncCpPolicy(sync_queue_size_), 
+    //     sub_cloud_top_,
+    //     sub_cpimg_fl_, sub_cpimg_f_, sub_cpimg_fr_,
+    //     sub_cpimg_b_, sub_cpimg_bl_, sub_cpimg_br_);
+    // sync_cp_ptr_->registerCallback(
+    //     std::bind(&ROS_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
+
     pub_stitched_img = create_publisher<sensor_msgs::msg::Image>(
         "/output/object", rclcpp::QoS{1});
     pub_cloud_top = create_publisher<sensor_msgs::msg::PointCloud2>(
@@ -202,7 +188,7 @@ ROS_Node::~ROS_Node(){
     RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "Destructing ROS_Node");
 }
 
-/* Image RAW */
+/* Image RGB */
 void ROS_Node::callback(
     // const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
     const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
@@ -212,12 +198,40 @@ void ROS_Node::callback(
     const sensor_msgs::msg::Image::ConstSharedPtr & img_bl_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & img_br_msg)
 {
-    // img_fl = cv_bridge::toCvShare(img_fl_msg , "bgr8")->image;    
-    // img_f  = cv_bridge::toCvShare(img_f_msg, "bgr8")->image;
-    // img_fr = cv_bridge::toCvShare(img_fr_msg, "bgr8")->image;
-    // img_bl = cv_bridge::toCvShare(img_bl_msg , "bgr8")->image;
-    // img_b  = cv_bridge::toCvShare(img_b_msg, "bgr8")->image;
-    // img_br = cv_bridge::toCvShare(img_br_msg, "bgr8")->image;
+    RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "new Img callback");
+
+    cv::Mat img_fl, img_f, img_fr, img_bl, img_b, img_br;
+    std::vector<cv::Mat> imgs;
+
+    img_fl = cv_bridge::toCvShare(img_fl_msg , "bgr8")->image;
+    img_f  = cv_bridge::toCvShare(img_f_msg, "bgr8")->image;
+    img_fr = cv_bridge::toCvShare(img_fr_msg, "bgr8")->image;
+    img_bl = cv_bridge::toCvShare(img_bl_msg , "bgr8")->image;
+    img_b  = cv_bridge::toCvShare(img_b_msg, "bgr8")->image;
+    img_br = cv_bridge::toCvShare(img_br_msg, "bgr8")->image;
+
+    imgs.emplace_back(img_fl);
+    imgs.emplace_back(img_f);
+    imgs.emplace_back(img_fr);
+    imgs.emplace_back(img_bl);
+    imgs.emplace_back(img_b);
+    imgs.emplace_back(img_br);
+
+    size_t width = 1600;
+    size_t height = 900;
+    uchar* temp_gpu = nullptr;
+    CHECK_CUDA(cudaMalloc(&temp_gpu, width * height * 3));
+    for (size_t i = 0; i < imgs.size(); i++) {
+        CHECK_CUDA(cudaMemcpy(temp_gpu, imgs[i].data, width * height * 3, cudaMemcpyHostToDevice));
+        convert_RGBHWC_to_BGRCHW(temp_gpu, imgs_dev_ + i * width * height * 3, 3, height, width);
+        CHECK_CUDA(cudaDeviceSynchronize());
+    }
+    CHECK_CUDA(cudaFree(temp_gpu));
+
+    DoInfer(imgs_dev_);
+
+    //publish
+    publish_boxes(this->markers, ego_boxes);
 }
 
 void ROS_Node::callbackCompressed(
@@ -229,7 +243,7 @@ void ROS_Node::callbackCompressed(
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_bl_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_br_msg)
 {
-    RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "new img callback");
+    RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "new CompressedImg callback");
 
     cv::Mat img_fl, img_f, img_fr, img_bl, img_b, img_br;
     std::vector<cv::Mat> imgs;
@@ -249,9 +263,20 @@ void ROS_Node::callbackCompressed(
     imgs.emplace_back(img_br);
 
     // TODO: optimize decode jpeg imgs
-    std::vector<std::vector<char>> imgs_data;
-    cvImgToArr(imgs, imgs_data);
-    decode_cpu(imgs_data, imgs_dev_, img_w_, img_h_);
+    // std::vector<std::vector<char>> imgs_data;
+    // cvImgToArr(imgs, imgs_data);
+    // decode_cpu(imgs_data, imgs_dev_, img_w_, img_h_);
+    // optimized
+    size_t width = 1600;
+    size_t height = 900;
+    uchar* temp_gpu = nullptr;
+    CHECK_CUDA(cudaMalloc(&temp_gpu, width * height * 3));
+    for (size_t i = 0; i < imgs.size(); i++) {
+        CHECK_CUDA(cudaMemcpy(temp_gpu, imgs[i].data, width * height * 3, cudaMemcpyHostToDevice));
+        convert_RGBHWC_to_BGRCHW(temp_gpu, imgs_dev_ + i * width * height * 3, 3, height, width);
+        CHECK_CUDA(cudaDeviceSynchronize());
+    }
+    CHECK_CUDA(cudaFree(temp_gpu));
 
     // vconcat 6 imgs
     // TODO: cuda/nvjpeg process?

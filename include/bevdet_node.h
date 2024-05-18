@@ -57,35 +57,40 @@ private:
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers;
     // synced msgs sub
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> sub_cloud_top_{}; 
-    // RAW
-    // message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_fl_{};
-    // message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_f_{};
-    // message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_fr_{}; 
-    // message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_b_{}; 
-    // message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_bl_{};
-    // message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_br_{};
+    // RGB
+    message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_fl_{};
+    message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_f_{};
+    message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_fr_{}; 
+    message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_b_{}; 
+    message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_bl_{};
+    message_filters::Subscriber<sensor_msgs::msg::Image> sub_img_br_{};
     // Compressed
-    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_img_fl_{};
-    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_img_f_{};
-    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_img_fr_{}; 
-    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_img_b_{}; 
-    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_img_bl_{};
-    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_img_br_{};
+    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_cpimg_fl_{};
+    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_cpimg_f_{};
+    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_cpimg_fr_{}; 
+    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_cpimg_b_{}; 
+    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_cpimg_bl_{};
+    message_filters::Subscriber<sensor_msgs::msg::CompressedImage> sub_cpimg_br_{};
 
     // sync 6 cam imgs
     int sync_queue_size_;
     using SyncPolicy = message_filters::sync_policies::ApproximateTime<
-        sensor_msgs::msg::PointCloud2, 
-        // sensor_msgs::msg::Image, sensor_msgs::msg::Image,
-        // sensor_msgs::msg::Image, sensor_msgs::msg::Image,
-        // sensor_msgs::msg::Image, sensor_msgs::msg::Image>;
-        sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage,
-        sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage,
-        sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage>;
+        sensor_msgs::msg::Image, sensor_msgs::msg::Image,
+        sensor_msgs::msg::Image, sensor_msgs::msg::Image,
+        sensor_msgs::msg::Image, sensor_msgs::msg::Image>;
     using Sync = message_filters::Synchronizer<SyncPolicy>;
     typename std::shared_ptr<Sync> sync_ptr_;
 
-    void callback(//const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
+    // sync 6 compressed cam imgs
+    using SyncCpPolicy = message_filters::sync_policies::ApproximateTime<
+        sensor_msgs::msg::PointCloud2, 
+        sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage,
+        sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage,
+        sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage>;
+    using SyncCp = message_filters::Synchronizer<SyncCpPolicy>;
+    typename std::shared_ptr<SyncCp> sync_cp_ptr_;
+
+    void callback(
         const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr & img_f_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr & img_fr_msg,

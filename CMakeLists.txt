@@ -86,33 +86,31 @@ find_package(PCL REQUIRED)
 # Nvidia #
 find_package(CUDA REQUIRED)
 
-set(GENCODE ${GENCODE} -gencode arch=compute_75,code=sm_75)
-# set(GENCODE ${GENCODE} -gencode arch=compute_75,code=compute_75)
-set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
-set(CUDA_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/include)
+# set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
+# set(CUDA_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/include)
 
 if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL  "aarch64")
   set(TENSORRT_INCLUDE_DIRS /usr/include/aarch64-linux-gnu/)
   set(TENSORRT_LIBRARY_DIRS /usr/lib/aarch64-linux-gnu/)
 elseif(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-  set(TENSORRT_INCLUDE_DIRS /home/antonio/Downloads/TensorRT-8.5.3.1/include)
-  set(TENSORRT_LIBRARY_DIRS /home/antonio/Downloads/TensorRT-8.5.3.1/lib)
+  set(TENSORRT_INCLUDE_DIRS /home/antonio/Downloads/TensorRT-8.6.1.6/include)
+  set(TENSORRT_LIBRARY_DIRS /home/antonio/Downloads/TensorRT-8.6.1.6/lib)
 endif()
 
 # release
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}
-  -ccbin ${CMAKE_CXX_COMPILER}"
-)
+# set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS}
+#   -ccbin ${CMAKE_CXX_COMPILER}"
+# )
+# # set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O0 -Xcompiler -fPIC -g -w -gencode=arch=compute_61,code=sm_61")
 # set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O0 -Xcompiler -fPIC -g -w -gencode=arch=compute_61,code=sm_61")
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -std=c++11 -O0 -Xcompiler -fPIC -g -w -gencode=arch=compute_75,code=sm_75")
 
 # debug
-if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
-  message("Using Debug Mode")
-  set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -g -G --ptxas-options=-v)
-endif()
+# if(${CMAKE_BUILD_TYPE} STREQUAL "DEBUG")
+#   message("Using Debug Mode")
+#   set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -g -G --ptxas-options=-v)
+# endif()
 
-set(CUDA_LIB_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/lib)
+# set(CUDA_LIB_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/lib)
 
 include_directories(
   ${PROJECT_SOURCE_DIR}/include
@@ -199,11 +197,15 @@ if(rclcpp_FOUND)
     DESTINATION lib/${PROJECT_NAME}
   )
 
-  install(DIRECTORY
-    launch
-    # rviz
-    DESTINATION share/${PROJECT_NAME}
-  )
+  # install(DIRECTORY
+  #   launch
+  #   # rviz
+  #   DESTINATION share/${PROJECT_NAME}
+  # )
 
-  ament_auto_package()
+  ament_auto_package(INSTALL_TO_SHARE
+    config  
+    launch
+    model
+  )
 endif()

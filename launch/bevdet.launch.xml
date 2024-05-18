@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="input/cam_front_left" default="~/image"/>
+  <arg name="configure" default="$(find-pkg-share bevdet_ros)/config/bevdet/configure.yaml"/>
+  <arg name="imgstage" default="$(find-pkg-share bevdet_ros)/model/img_stage_lt_d_fp16.engine"/>
+  <arg name="bevstage" default="$(find-pkg-share bevdet_ros)/model/bev_stage_lt_d_fp16.engine"/>
+  
+  <arg name="model" default="$(find-pkg-share bevdet_ros)/config/bevdet/configure.yaml"/>
+
+  <node pkg="bevdet_ros" exec="bevdet_ros_node" name="bevdet_ros" output="screen">
+    <!-- <remap from="~/image_raw" to="$(var input/cam_front_left)"/>
+    <remap from="/CAM_FRONT_LEFT/image_raw" to="/CAM_FRONT_LEFT/image"/>
+    <remap from="/CAM_FRONT/image_raw" to="/CAM_FRONT/image"/>
+    <remap from="/CAM_FRONT_RIGHT/image_raw" to="/CAM_FRONT_RIGHT/image"/>
+    <remap from="/CAM_BACK_LEFT/image_raw" to="/CAM_BACK_LEFT/image"/>
+    <remap from="/CAM_BACK/image_raw" to="/CAM_BACK/image"/>
+    <remap from="/CAM_BACK_RIGHT/image_raw" to="/CAM_BACK_RIGHT/image"/> -->
+    <param name="configure" value="$(var configure)"/>
+    <param name="imgstage" value="$(var imgstage)"/>
+    <param name="bevstage" value="$(var bevstage)"/>
+  </node>
+</launch>

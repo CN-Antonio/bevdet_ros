@@ -1,6 +1,6 @@
-/model/
+/.vscode/
 /sample0/
 /output/
 /c++_output/
 
-*.engine
+/model/*.engine
