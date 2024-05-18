@@ -27,6 +27,35 @@ int main(int argc, char **argv)
     return 0;
 }
 
+std::vector<std::vector<float>> colormap = {
+    {1.0 , 0.62, 0.0, 0.5},     // 0-car
+    {1.0 , 0.38, 0.27, 0.5},    // 1-truck
+    {1.0 , 0.38, 0.27, 0.5},    // 2-construction_vehicle
+    {0.0, 0.0, 0.0, 0.5},
+    {0.0, 0.0, 0.0, 0.5},
+    {0.0, 0.0, 0.0, 0.5},
+    {0.0, 0.0, 0.0, 0.5},
+    {0.86, 0.08, 0.23, 0.5},    // 7-bicycle
+    {0.0, 0.0, 0.90, 0.5},      // 8-pedestrian
+    {0.0, 0.0, 0.0, 0.5},
+};
+
+std_msgs::msg::ColorRGBA make_color(int label)
+{
+    std_msgs::msg::ColorRGBA c;
+
+    c.r = colormap[label][0];
+    c.g = colormap[label][1];
+    c.b = colormap[label][2];
+    c.a = colormap[label][3];
+
+    return c;
+}
+
+// std::vector<std_msgs::msg::ColorRGBA> box_color = {
+//     {1.0, 0.38, 0.27, 0.5}
+// };
+
 void publish_boxes(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr publisher, std::vector<Box> boxes)
 {
     std::cout<< "len: "<< boxes.size()<< std::endl;
@@ -36,7 +65,7 @@ void publish_boxes(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::Shar
     visualization_msgs::msg::MarkerArray box_array;  
 
     // Set new
-    box_marker.header.frame_id = "base_link";
+    box_marker.header.frame_id = "hero";
     box_marker.type = visualization_msgs::msg::Marker::CUBE;  // 1
     box_marker.action = visualization_msgs::msg::Marker::ADD; // 0
     box_marker.scale.x = 2.0;
@@ -65,13 +94,8 @@ void publish_boxes(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::Shar
         box_marker.scale.x = boxes[i].l;
         box_marker.scale.y = boxes[i].w;
         box_marker.scale.z = boxes[i].h;
-        
-        box_marker.color.r = 1.0;   // get color by type
-        box_marker.color.g = 0.38;
-        box_marker.color.b = 0.27;
 
-        // box_marker.color = colormap[boxes[i].label];
-
+        box_marker.color = make_color(boxes[i].label);
         box_array.markers.push_back(box_marker);
     }
     
@@ -82,21 +106,17 @@ void publish_boxes(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::Shar
 ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     rclcpp::Node("bevdet_node", node_options),
     BEVDet(),
-    sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_fl_(this, "/CAM_FRONT_LEFT/image_raw",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_f_ (this, "/CAM_FRONT/image_raw",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_fr_(this, "/CAM_FRONT_RIGHT/image_raw", rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_bl_(this, "/CAM_BACK_LEFT/image_raw",   rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_b_(this,   "/CAM_BACK/image_raw",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_img_br_(this, "/CAM_BACK_RIGHT/image_raw",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_cpimg_fl_(this, "/CAM_FRONT_LEFT/image_rect_compressed",  rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_cpimg_f_ (this, "/CAM_FRONT/image_rect_compressed",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_cpimg_fr_(this, "/CAM_FRONT_RIGHT/image_rect_compressed", rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_cpimg_bl_(this, "/CAM_BACK_LEFT/image_rect_compressed",   rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_cpimg_b_(this,   "/CAM_BACK/image_rect_compressed",       rclcpp::QoS{1}.get_rmw_qos_profile()),
-    sub_cpimg_br_(this, "/CAM_BACK_RIGHT/image_rect_compressed",  rclcpp::QoS{1}.get_rmw_qos_profile())
+    sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile())
 {
     // get launch config
+    this->get_parameter("cam_fl_topic", cam_fl_topic);
+    this->get_parameter("cam_f_topic", cam_f_topic);
+    this->get_parameter("cam_fr_topic", cam_fr_topic);
+    this->get_parameter("cam_bl_topic", cam_bl_topic);
+    this->get_parameter("cam_b_topic", cam_b_topic);
+    this->get_parameter("cam_br_topic", cam_br_topic);
+    RCLCPP_INFO(this->get_logger(), "cam_fl_topic: %s", cam_fl_topic.c_str());
+
     this->get_parameter("configure", config_file);
     this->get_parameter("imgstage", imgstage_file);
     this->get_parameter("bevstage", bevstage_file);
@@ -126,7 +146,8 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     // bevstage_file = config["BEVStageEngine"].as<std::string>();
 
     // =============  bevdet_lt_depth.yaml
-    config_file = config["ModelConfig"].as<std::string>(); //"src/bevdet_ros/config/bevdet/cfgs/bevdet_lt_depth.yaml";
+    // config_file = config["ModelConfig"].as<std::string>();
+    this->get_parameter("model", config_file);
     InitParams(config_file);
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -151,6 +172,13 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     CHECK_CUDA(cudaMalloc((void**)&imgs_dev_, img_N_ * 3 * img_w_ * img_h_ * sizeof(uchar)));
 
     // ==================  ROS2 Sub&Pub ========================= //
+    sub_img_fl_.subscribe(this, cam_fl_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_f_.subscribe(this, cam_f_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_fr_.subscribe(this, cam_fr_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_bl_.subscribe(this, cam_bl_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_b_.subscribe(this, cam_b_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_br_.subscribe(this, cam_br_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
+
     sync_queue_size_ = declare_parameter<int>("sync_queue_size", 60);   // 10 for each img
     // Create publishers and subscribers
     using std::placeholders::_1;using std::placeholders::_2;
@@ -194,8 +222,8 @@ void ROS_Node::callback(
     const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & img_f_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & img_fr_msg,
-    const sensor_msgs::msg::Image::ConstSharedPtr & img_b_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & img_bl_msg,
+    const sensor_msgs::msg::Image::ConstSharedPtr & img_b_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & img_br_msg)
 {
     RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "new Img callback");
@@ -239,8 +267,8 @@ void ROS_Node::callbackCompressed(
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fl_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_f_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fr_msg,
-    const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_b_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_bl_msg,
+    const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_b_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_br_msg)
 {
     RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "new CompressedImg callback");

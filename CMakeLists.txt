@@ -204,7 +204,7 @@ if(rclcpp_FOUND)
   # )
 
   ament_auto_package(INSTALL_TO_SHARE
-    config  
+    config
     launch
     model
   )

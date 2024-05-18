@@ -1,6 +1,6 @@
 # TestNuscenes: true # true or false
 
-ModelConfig: src/bevdet_ros/config/bevdet/cfgs/bevdet_lt_depth.yaml
+ModelConfig: src/perception/bevdet_ros/config/bevdet/cfgs/bevdet_lt_depth.yaml
 
 N: 6
 H: 900
@@ -67,8 +67,8 @@ CamConfig: /home/antonio/Projects/bevdet_ros/sample0/sample0000.yaml
 InputFile: /home/antonio/Projects/bevdet_ros/sample0/0.bin
 OutputLidarBox: /home/antonio/Projects/bevdet_ros/sample0/sample0_lidarbox.txt
 
-ImgStageEngine: /home/antonio/Projects/bevdet_ros/model/img_stage_lt_d_fp16.engine
-BEVStageEngine: /home/antonio/Projects/bevdet_ros/model/bev_stage_lt_d_fp16.engine
+ImgStageEngine: src/perception/bevdet_ros/model/img_stage_lt_d_fp16.engine
+BEVStageEngine: src/perception/bevdet_ros/model/bev_stage_lt_d_fp16.engine
 
 
 OutputDir: /home/antonio/Projects/bevdet_ros/output/bevdet

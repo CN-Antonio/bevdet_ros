@@ -50,7 +50,12 @@ protected:
     uchar* imgs_dev_ = nullptr; 
 private:
     // ROS Init
-    std::string pkg_path_;
+    std::string cam_fl_topic;
+    std::string cam_f_topic;
+    std::string cam_fr_topic;
+    std::string cam_bl_topic;
+    std::string cam_b_topic;
+    std::string cam_br_topic;
     
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_stitched_img; // test
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_top;
@@ -94,8 +99,8 @@ private:
         const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr & img_f_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr & img_fr_msg,
-        const sensor_msgs::msg::Image::ConstSharedPtr & img_b_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr & img_bl_msg,
+        const sensor_msgs::msg::Image::ConstSharedPtr & img_b_msg,
         const sensor_msgs::msg::Image::ConstSharedPtr & img_br_msg
     );
 
