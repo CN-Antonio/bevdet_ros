@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-SET(PROJECT_NAME bevdet_ros)
-project(${PROJECT_NAME} LANGUAGES CXX CUDA)
+project(bevdet_ros LANGUAGES CXX)# CUDA)
 
 #=======================================
 # Compile setup (ORIGINAL, CATKIN, COLCON)
@@ -24,12 +23,12 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-w) # only output error, ignore warining
 endif()
 
+option(CUDA_VERBOSE "Verbose output of CUDA modules" OFF)
 
 #========================
 # Dependencies Setup
 #========================
 # find dependencies
-find_package(ament_cmake REQUIRED)
 
 # GCC/G++/GNU
 
@@ -83,18 +82,62 @@ find_package(OpenCV REQUIRED)
 # PCL
 find_package(PCL REQUIRED)
 
-# Nvidia #
-find_package(CUDA REQUIRED)
+# Nvidia BEGIN ##############################################################################
+# set flags for CUDA availability
+option(CUDA_AVAIL "CUDA available" OFF)
+find_package(CUDA)
+if(CUDA_FOUND)
+  find_library(CUBLAS_LIBRARIES cublas HINTS
+    ${CUDA_TOOLKIT_ROOT_DIR}/lib64
+    ${CUDA_TOOLKIT_ROOT_DIR}/lib
+  )
+  if(CUDA_VERBOSE)
+    message("CUDA is available!")
+    message("CUDA Libs: ${CUDA_LIBRARIES}")
+    message("CUDA Headers: ${CUDA_INCLUDE_DIRS}")
+  endif()
+  # Note: cublas_device was depreciated in CUDA version 9.2
+  #       https://forums.developer.nvidia.com/t/where-can-i-find-libcublas-device-so-or-libcublas-device-a/67251/4
+  #       In LibTorch, CUDA_cublas_device_LIBRARY is used.
+  unset(CUDA_cublas_device_LIBRARY CACHE)
+  set(CUDA_AVAIL ON)
+else()
+  message("CUDA NOT FOUND")
+  set(CUDA_AVAIL OFF)
+endif()
 
+# TODO: find out OR Remove ##
 # set(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda)
 # set(CUDA_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/include)
 
+# set flags for TensorRT availability
+## TODO: auto find
 if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL  "aarch64")
   set(TENSORRT_INCLUDE_DIRS /usr/include/aarch64-linux-gnu/)
   set(TENSORRT_LIBRARY_DIRS /usr/lib/aarch64-linux-gnu/)
 elseif(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-  set(TENSORRT_INCLUDE_DIRS /home/antonio/Downloads/TensorRT-8.6.1.6/include)
-  set(TENSORRT_LIBRARY_DIRS /home/antonio/Downloads/TensorRT-8.6.1.6/lib)
+  set(TENSORRT_INCLUDE_DIRS /home/antonio/Downloads/TensorRT-8.5.3.1/include)
+  set(TENSORRT_LIBRARY_DIRS /home/antonio/Downloads/TensorRT-8.5.3.1/lib)
+endif()
+
+# set flags for CUDNN availability
+option(CUDNN_AVAIL "CUDNN available" OFF)
+# try to find the CUDNN module
+find_library(CUDNN_LIBRARY
+NAMES libcudnn.so${__cudnn_ver_suffix} libcudnn${__cudnn_ver_suffix}.dylib ${__cudnn_lib_win_name}
+PATHS $ENV{LD_LIBRARY_PATH} ${__libpath_cudart} ${CUDNN_ROOT_DIR} ${PC_CUDNN_LIBRARY_DIRS} ${CMAKE_INSTALL_PREFIX}
+PATH_SUFFIXES lib lib64 bin
+DOC "CUDNN library."
+)
+if(CUDNN_LIBRARY)
+  if(CUDA_VERBOSE)
+    message(STATUS "CUDNN is available!")
+    message(STATUS "CUDNN_LIBRARY: ${CUDNN_LIBRARY}")
+  endif()
+  set(CUDNN_AVAIL ON)
+else()
+  message("CUDNN is NOT Available")
+  set(CUDNN_AVAIL OFF)
 endif()
 
 # release
@@ -111,6 +154,8 @@ endif()
 # endif()
 
 # set(CUDA_LIB_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/lib)
+
+# Nvidia END ##############################################################################
 
 include_directories(
   ${PROJECT_SOURCE_DIR}/include
@@ -149,28 +194,48 @@ endif()
 # Build Setup
 #========================
 
-cuda_add_executable(${PROJECT_NAME}_node
-  src/bevdet_node.cpp
-
-  src/bevdet/bevdet.cpp 
-  src/bevdet/preprocess.cu 
-  src/bevdet/bevpool.cu 
-  src/bevdet/iou3d_nms.cu
-  src/bevdet/postprocess.cu
+# Build non-CUDA bevdet dependent parts
+ament_auto_add_library(bevdet_lib SHARED
+  src/bevdet/bevdet.cpp
   src/bevdet/data.cpp
-  src/bevdet/grid_sampler.cu
   src/bevdet/cpu_jpegdecoder.cpp
   src/bevdet/nvjpegdecoder.cpp
 
   src/test.cpp
 )
 
-target_link_libraries(${PROJECT_NAME}_node
+# Build CUDA bevdet dependent parts
+cuda_add_library(bevdet_cuda_lib SHARED
+  src/bevdet/preprocess.cu 
+  src/bevdet/bevpool.cu 
+  src/bevdet/iou3d_nms.cu
+  src/bevdet/postprocess.cu
+  src/bevdet/grid_sampler.cu
+)
+
+# Build bevdet ros parts
+ament_auto_add_library(bevdet_node SHARED
+  src/bevdet_node.cpp
+)
+
+# cuda_add_executable(${PROJECT_NAME}_node   
+# )
+
+target_link_libraries(bevdet_node
   yaml-cpp 
   libnvinfer.so
   libjpeg.so
   ${OpenCV_LIBS}
   # ${PCL_LIBRARIES}
+
+  bevdet_lib
+  bevdet_cuda_lib
+  # bevdet_node
+)
+
+rclcpp_components_register_node(bevdet_node
+  PLUGIN "bevdet::bevdet_ros::ROS_Node"
+  EXECUTABLE ${PROJECT_NAME}_node
 )
 
 # none ROS demo
