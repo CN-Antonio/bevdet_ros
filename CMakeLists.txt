@@ -234,7 +234,7 @@ target_link_libraries(bevdet_node
 )
 
 rclcpp_components_register_node(bevdet_node
-  PLUGIN "bevdet::bevdet_ros::ROS_Node"
+  PLUGIN "bevdet::bevdet_ros::BEVDet_Node"
   EXECUTABLE ${PROJECT_NAME}_node
 )
 

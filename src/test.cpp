@@ -30,7 +30,10 @@ int cvImgToArr(std::vector<cv::Mat> &imgs, std::vector<std::vector<char>> &imgs_
 }
 
 // test
-void ROS_Node::timer_callback()
+
+namespace bevdet::bevdet_ros
+{
+void BEVDet_Node::timer_callback()
 {
     if(timer_count_>999) timer_count_=0;
 
@@ -40,3 +43,4 @@ void ROS_Node::timer_callback()
 
     timer_count_++;
 }
+}  // namespace bevdet::bevdet_ros

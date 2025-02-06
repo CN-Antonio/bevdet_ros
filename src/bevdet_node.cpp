@@ -80,13 +80,13 @@ void publish_boxes(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::Shar
     box_array.markers.clear();
 }
 
-ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
+BEVDet_Node::BEVDet_Node(const rclcpp::NodeOptions & node_options):
     rclcpp::Node("bevdet_node", node_options),
     base_frame_(this->declare_parameter<std::string>("base_frame")),
     BEVDet()
     // sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile())
 {
-    // Set ROS parameters
+    /* Set ROS parameters */
     // base_frame_ = this->declare_parameter<std::string>("base_frame");
 
     // ==================  Set subscribers and publishers ========================= //
@@ -110,33 +110,25 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
         sub_img_fl_, sub_img_f_, sub_img_fr_,
         sub_img_b_, sub_img_bl_, sub_img_br_);
     sync_ptr_->registerCallback(
-        std::bind(&ROS_Node::callback, this, _1, _2, _3, _4, _5, _6));
+        std::bind(&BEVDet_Node::callback, this, _1, _2, _3, _4, _5, _6));
 // IF Compressed Img
     // sync_cp_ptr_ = std::make_shared<SyncCp>(SyncCpPolicy(sync_queue_size_), 
     //     sub_cloud_top_,
     //     sub_cpimg_fl_, sub_cpimg_f_, sub_cpimg_fr_,
     //     sub_cpimg_b_, sub_cpimg_bl_, sub_cpimg_br_);
     // sync_cp_ptr_->registerCallback(
-    //     std::bind(&ROS_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
+    //     std::bind(&BEVDet_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
 
     pub_stitched_img = create_publisher<sensor_msgs::msg::Image>(
         "/output/object", rclcpp::QoS{1});
     pub_cloud_top = create_publisher<sensor_msgs::msg::PointCloud2>(
         "/LIDAR_TOP_retime", rclcpp::QoS{1});
     markers = create_publisher<visualization_msgs::msg::MarkerArray>(
-        "/markers/infered", rclcpp::QoS{1});
+        "~/output/markers", rclcpp::QoS{1});
 
     return;
 
-    /* get launch config */
-    // this->get_parameter("cam_fl_topic", cam_fl_topic);
-    // this->get_parameter("cam_f_topic", cam_f_topic);
-    // this->get_parameter("cam_fr_topic", cam_fr_topic);
-    // this->get_parameter("cam_bl_topic", cam_bl_topic);
-    // this->get_parameter("cam_b_topic", cam_b_topic);
-    // this->get_parameter("cam_br_topic", cam_br_topic);
-    // RCLCPP_INFO(this->get_logger(), "cam_fl_topic: %s", cam_fl_topic.c_str());
-
+    /* set Data params */
     // this->get_parameter("configure", config_file);
     // this->get_parameter("imgstage", imgstage_file);
     // this->get_parameter("bevstage", bevstage_file);
@@ -161,7 +153,7 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     //     cams2ego_trans[i] = fromYamlTrans(config["cams"][cams_name[i]]["sensor2ego_translation"]);//nuscenes.get_cams2ego_trans();
     // }
 
-    // 模型配置文件路径 
+    /* Set model params */
     // imgstage_file = config["ImgStageEngine"].as<std::string>();
     // bevstage_file = config["BEVStageEngine"].as<std::string>();
 
@@ -195,16 +187,16 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
 
     // test
     // timer_ = this->create_wall_timer(
-    //         500ms, std::bind(&ROS_Node::timer_callback, this)
+    //         500ms, std::bind(&BEVDet_Node::timer_callback, this)
     // );
 }
 
-ROS_Node::~ROS_Node(){
-    RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "Destructing ROS_Node");
+BEVDet_Node::~BEVDet_Node(){
+    RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "Destructing BEVDet_Node");
 }
 
 /* Image RGB */
-void ROS_Node::callback(
+void BEVDet_Node::callback(
     // const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
     const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,
     const sensor_msgs::msg::Image::ConstSharedPtr & img_f_msg,
@@ -251,7 +243,7 @@ void ROS_Node::callback(
     publish_boxes(this->markers, ego_boxes);
 }
 
-void ROS_Node::callbackCompressed(
+void BEVDet_Node::callbackCompressed(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fl_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_f_msg,
@@ -321,7 +313,7 @@ void ROS_Node::callbackCompressed(
     publish_boxes(this->markers, ego_boxes);
 }
 
-void ROS_Node::TestNuscenes(YAML::Node &config){
+void BEVDet_Node::TestNuscenes(YAML::Node &config){
     std::cout<< "TestNuscenes" <<std::endl;
     size_t img_N = config["N"].as<size_t>();
     int img_w = config["W"].as<int>();
@@ -337,8 +329,8 @@ void ROS_Node::TestNuscenes(YAML::Node &config){
             imgstage_file, bevstage_file);
     double sum_time = 0;
     int  cnt = 0;
-    // for(int i = 0; i < nuscenes.size(); i++){
-    for(int i = 0; i < 20; i++){
+    for(int i = 0; i < nuscenes.size(); i++){
+    // for(int i = 0; i < 20; i++){
         ego_boxes.clear();
         float time = 0.f;
         bevdet.DoInfer(nuscenes.data(i), ego_boxes, time, i);
@@ -356,4 +348,4 @@ void ROS_Node::TestNuscenes(YAML::Node &config){
 }  // namespace bevdet::bevdet_ros
 
 #include <rclcpp_components/register_node_macro.hpp>
-RCLCPP_COMPONENTS_REGISTER_NODE(bevdet::bevdet_ros::ROS_Node)
+RCLCPP_COMPONENTS_REGISTER_NODE(bevdet::bevdet_ros::BEVDet_Node)

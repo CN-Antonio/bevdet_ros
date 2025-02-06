@@ -38,11 +38,11 @@ using std::chrono::duration;
 using namespace std::chrono_literals; // 500ms
 
 // TODO: change class name to BEVDet_Node
-class ROS_Node : public rclcpp::Node, public BEVDet
+class BEVDet_Node : public rclcpp::Node, public BEVDet
 {
 public:
-    explicit ROS_Node(const rclcpp::NodeOptions & node_options);
-    ~ROS_Node();
+    explicit BEVDet_Node(const rclcpp::NodeOptions & node_options);
+    ~BEVDet_Node();
 
     // for test
     void TestNuscenes(YAML::Node &config);
