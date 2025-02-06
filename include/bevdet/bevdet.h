@@ -135,7 +135,7 @@ protected:
     int DeserializeTRTEngine(const std::string &engine_file, nvinfer1::ICudaEngine **engine_ptr);
     void MallocDeviceMemory();
 
-    // DoInfer step
+    // DoInfer steps
     void InitDepth(const std::vector<Eigen::Quaternion<float>> &curr_cams2ego_rot,
                    const std::vector<Eigen::Translation3f> &curr_cams2ego_trans,
                    const std::vector<Eigen::Matrix3f> &cams_intrin);

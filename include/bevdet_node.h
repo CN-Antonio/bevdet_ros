@@ -11,8 +11,7 @@
 
 #include "cpu_jpegdecoder.h"
 
-#ifdef ROS_FOUND
-#elif ROS2_FOUND
+#ifdef ROS2_FOUND
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <sensor_msgs/msg/image.hpp>
@@ -28,13 +27,17 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h> // sync 6 cam imgs
 #include <message_filters/sync_policies/approximate_time.h> // 时间相近同步
+#elif ROS_FOUND
 #endif // ROS/2_FOUND
 
+namespace bevdet::bevdet_ros
+{
 // TODO: remove
 using std::chrono::high_resolution_clock;
 using std::chrono::duration;
 using namespace std::chrono_literals; // 500ms
 
+// TODO: change class name to BEVDet_Node
 class ROS_Node : public rclcpp::Node, public BEVDet
 {
 public:
@@ -43,6 +46,7 @@ public:
 
     // for test
     void TestNuscenes(YAML::Node &config);
+    void publish_imgs(const std::vector<std::vector<char>> &cam_data);
 protected:
     size_t img_N_;
     int img_w_; 
@@ -50,13 +54,6 @@ protected:
     uchar* imgs_dev_ = nullptr; 
 private:
     // ROS Init
-    std::string cam_fl_topic;
-    std::string cam_f_topic;
-    std::string cam_fr_topic;
-    std::string cam_bl_topic;
-    std::string cam_b_topic;
-    std::string cam_br_topic;
-    
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_stitched_img; // test
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_top;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers;
@@ -113,10 +110,14 @@ private:
         const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_br_msg
     );
 
+    const std::string base_frame_;
+
     // test
     size_t timer_count_;
     rclcpp::TimerBase::SharedPtr timer_;
     void timer_callback();
 };
+
+}  // namespace bevdet::bevdet_ros
 
 #endif // __BEVDET_NODE_H__

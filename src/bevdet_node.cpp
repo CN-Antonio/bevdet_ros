@@ -1,31 +1,8 @@
 #include "bevdet_node.h"
 #include "test.h"
 
-int main(int argc, char **argv)
+namespace bevdet::bevdet_ros
 {
-#ifdef ROS_FOUND
-#elif ROS2_FOUND
-    rclcpp::init(argc, argv);
-    rclcpp::executors::MultiThreadedExecutor executor;
-#endif
-
-    /* main function BEGIN */
-    // std::shared_ptr<ROS_Node> demo_ptr = std::make_shared<ROS_Node>(
-    //     rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
-    // );
-    auto node = std::make_shared<ROS_Node>(
-        rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)
-    );
-
-    executor.add_node(node);
-    executor.spin();
-    executor.remove_node(node);
-
-    // rclcpp::spin(demo_ptr);
-    /* main function END */
-
-    return 0;
-}
 
 std::vector<std::vector<float>> colormap = {
     {1.0 , 0.62, 0.0, 0.5},     // 0-car
@@ -105,41 +82,84 @@ void publish_boxes(rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::Shar
 
 ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     rclcpp::Node("bevdet_node", node_options),
-    BEVDet(),
-    sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile())
+    base_frame_(this->declare_parameter<std::string>("base_frame")),
+    BEVDet()
+    // sub_cloud_top_(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile())
 {
-    // get launch config
-    this->get_parameter("cam_fl_topic", cam_fl_topic);
-    this->get_parameter("cam_f_topic", cam_f_topic);
-    this->get_parameter("cam_fr_topic", cam_fr_topic);
-    this->get_parameter("cam_bl_topic", cam_bl_topic);
-    this->get_parameter("cam_b_topic", cam_b_topic);
-    this->get_parameter("cam_br_topic", cam_br_topic);
-    RCLCPP_INFO(this->get_logger(), "cam_fl_topic: %s", cam_fl_topic.c_str());
+    // Set ROS parameters
+    // base_frame_ = this->declare_parameter<std::string>("base_frame");
 
-    this->get_parameter("configure", config_file);
-    this->get_parameter("imgstage", imgstage_file);
-    this->get_parameter("bevstage", bevstage_file);
-    RCLCPP_INFO(this->get_logger(), "config_filePath: %s", config_file.c_str());
+    // ==================  Set subscribers and publishers ========================= //
+    sub_cloud_top_.subscribe(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_fl_.subscribe(this, "~/input/image_fl", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_f_.subscribe(this, "~/input/image_f", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_fr_.subscribe(this, "~/input/image_fr", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_bl_.subscribe(this, "~/input/image_bl", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_b_.subscribe(this, "~/input/image_b", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_img_br_.subscribe(this, "~/input/image_br", rclcpp::QoS{1}.get_rmw_qos_profile());
+
+    sync_queue_size_ = declare_parameter<int>("sync_queue_size", 60);   // 10 for each img
+    // Create publishers and subscribers
+    using std::placeholders::_1;using std::placeholders::_2;
+    using std::placeholders::_3;using std::placeholders::_4;
+    using std::placeholders::_5;using std::placeholders::_6;
+    // using std::placeholders::_7;
+// IF RGB Img
+    sync_ptr_ = std::make_shared<Sync>(SyncPolicy(sync_queue_size_), 
+        // sub_cloud_top_,
+        sub_img_fl_, sub_img_f_, sub_img_fr_,
+        sub_img_b_, sub_img_bl_, sub_img_br_);
+    sync_ptr_->registerCallback(
+        std::bind(&ROS_Node::callback, this, _1, _2, _3, _4, _5, _6));
+// IF Compressed Img
+    // sync_cp_ptr_ = std::make_shared<SyncCp>(SyncCpPolicy(sync_queue_size_), 
+    //     sub_cloud_top_,
+    //     sub_cpimg_fl_, sub_cpimg_f_, sub_cpimg_fr_,
+    //     sub_cpimg_b_, sub_cpimg_bl_, sub_cpimg_br_);
+    // sync_cp_ptr_->registerCallback(
+    //     std::bind(&ROS_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
+
+    pub_stitched_img = create_publisher<sensor_msgs::msg::Image>(
+        "/output/object", rclcpp::QoS{1});
+    pub_cloud_top = create_publisher<sensor_msgs::msg::PointCloud2>(
+        "/LIDAR_TOP_retime", rclcpp::QoS{1});
+    markers = create_publisher<visualization_msgs::msg::MarkerArray>(
+        "/markers/infered", rclcpp::QoS{1});
+
+    return;
+
+    /* get launch config */
+    // this->get_parameter("cam_fl_topic", cam_fl_topic);
+    // this->get_parameter("cam_f_topic", cam_f_topic);
+    // this->get_parameter("cam_fr_topic", cam_fr_topic);
+    // this->get_parameter("cam_bl_topic", cam_bl_topic);
+    // this->get_parameter("cam_b_topic", cam_b_topic);
+    // this->get_parameter("cam_br_topic", cam_br_topic);
+    // RCLCPP_INFO(this->get_logger(), "cam_fl_topic: %s", cam_fl_topic.c_str());
+
+    // this->get_parameter("configure", config_file);
+    // this->get_parameter("imgstage", imgstage_file);
+    // this->get_parameter("bevstage", bevstage_file);
+    // RCLCPP_INFO(this->get_logger(), "config_filePath: %s", config_file.c_str());
     
     // TODO BEGIN: read from yaml file
-    YAML::Node config = YAML::LoadFile(config_file);
+    // YAML::Node config = YAML::LoadFile(config_file);
     
-    std::vector<std::string> cams_name = config["cams"]["cam_name"].as<std::vector<std::string>>();
+    // std::vector<std::string> cams_name = config["cams"]["cam_name"].as<std::vector<std::string>>();
 
-    cams_intrin.clear();
-    cams2ego_rot.clear();
-    cams2ego_trans.clear();
+    // cams_intrin.clear();
+    // cams2ego_rot.clear();
+    // cams2ego_trans.clear();
 
-    cams_intrin.resize(cams_name.size());
-    cams2ego_rot.resize(cams_name.size());
-    cams2ego_trans.resize(cams_name.size());
+    // cams_intrin.resize(cams_name.size());
+    // cams2ego_rot.resize(cams_name.size());
+    // cams2ego_trans.resize(cams_name.size());
 
-    for(size_t i = 0; i < cams_name.size(); i++){
-        cams_intrin[i] = fromYamlMatrix3f(config["cams"][cams_name[i]]["cam_intrinsic"]);
-        cams2ego_rot[i] = fromYamlQuater(config["cams"][cams_name[i]]["sensor2ego_rotation"]);//nuscenes.get_cams2ego_rot();
-        cams2ego_trans[i] = fromYamlTrans(config["cams"][cams_name[i]]["sensor2ego_translation"]);//nuscenes.get_cams2ego_trans();
-    }
+    // for(size_t i = 0; i < cams_name.size(); i++){
+    //     cams_intrin[i] = fromYamlMatrix3f(config["cams"][cams_name[i]]["cam_intrinsic"]);
+    //     cams2ego_rot[i] = fromYamlQuater(config["cams"][cams_name[i]]["sensor2ego_rotation"]);//nuscenes.get_cams2ego_rot();
+    //     cams2ego_trans[i] = fromYamlTrans(config["cams"][cams_name[i]]["sensor2ego_translation"]);//nuscenes.get_cams2ego_trans();
+    // }
 
     // 模型配置文件路径 
     // imgstage_file = config["ImgStageEngine"].as<std::string>();
@@ -171,40 +191,7 @@ ROS_Node::ROS_Node(const rclcpp::NodeOptions & node_options):
     // gpu分配内参， cuda上分配6张图的大小 每个变量sizeof(uchar)个字节，并用imgs_dev指向该gpu上内存, sizeof(uchar) =1
     CHECK_CUDA(cudaMalloc((void**)&imgs_dev_, img_N_ * 3 * img_w_ * img_h_ * sizeof(uchar)));
 
-    // ==================  ROS2 Sub&Pub ========================= //
-    sub_img_fl_.subscribe(this, cam_fl_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_f_.subscribe(this, cam_f_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_fr_.subscribe(this, cam_fr_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_bl_.subscribe(this, cam_bl_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_b_.subscribe(this, cam_b_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_br_.subscribe(this, cam_br_topic, rclcpp::QoS{1}.get_rmw_qos_profile());
 
-    sync_queue_size_ = declare_parameter<int>("sync_queue_size", 60);   // 10 for each img
-    // Create publishers and subscribers
-    using std::placeholders::_1;using std::placeholders::_2;
-    using std::placeholders::_3;using std::placeholders::_4;
-    using std::placeholders::_5;using std::placeholders::_6;
-    // using std::placeholders::_7;
-    sync_ptr_ = std::make_shared<Sync>(SyncPolicy(sync_queue_size_), 
-        // sub_cloud_top_,
-        sub_img_fl_, sub_img_f_, sub_img_fr_,
-        sub_img_b_, sub_img_bl_, sub_img_br_);
-    sync_ptr_->registerCallback(
-        std::bind(&ROS_Node::callback, this, _1, _2, _3, _4, _5, _6));
-    // Compressed
-    // sync_cp_ptr_ = std::make_shared<SyncCp>(SyncCpPolicy(sync_queue_size_), 
-    //     sub_cloud_top_,
-    //     sub_cpimg_fl_, sub_cpimg_f_, sub_cpimg_fr_,
-    //     sub_cpimg_b_, sub_cpimg_bl_, sub_cpimg_br_);
-    // sync_cp_ptr_->registerCallback(
-    //     std::bind(&ROS_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
-
-    pub_stitched_img = create_publisher<sensor_msgs::msg::Image>(
-        "/output/object", rclcpp::QoS{1});
-    pub_cloud_top = create_publisher<sensor_msgs::msg::PointCloud2>(
-        "/LIDAR_TOP_retime", rclcpp::QoS{1});
-    markers = create_publisher<visualization_msgs::msg::MarkerArray>(
-        "/markers/infered", rclcpp::QoS{1});
 
     // test
     // timer_ = this->create_wall_timer(
@@ -244,6 +231,8 @@ void ROS_Node::callback(
     imgs.emplace_back(img_bl);
     imgs.emplace_back(img_b);
     imgs.emplace_back(img_br);
+
+    return;
 
     size_t width = 1600;
     size_t height = 900;
@@ -353,7 +342,7 @@ void ROS_Node::TestNuscenes(YAML::Node &config){
         ego_boxes.clear();
         float time = 0.f;
         bevdet.DoInfer(nuscenes.data(i), ego_boxes, time, i);
-        publish_boxes(this->markers, ego_boxes);
+        // publish_boxes(this->markers, ego_boxes);
 
         if(i != 0){
             sum_time += time;
@@ -363,3 +352,8 @@ void ROS_Node::TestNuscenes(YAML::Node &config){
     }
     printf("Infer mean cost time : %.5lf ms\n", sum_time / cnt);
 }
+
+}  // namespace bevdet::bevdet_ros
+
+#include <rclcpp_components/register_node_macro.hpp>
+RCLCPP_COMPONENTS_REGISTER_NODE(bevdet::bevdet_ros::ROS_Node)
