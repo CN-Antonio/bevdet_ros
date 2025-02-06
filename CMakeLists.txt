@@ -23,7 +23,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-w) # only output error, ignore warining
 endif()
 
-option(CUDA_VERBOSE "Verbose output of CUDA modules" OFF)
+option(CUDA_VERBOSE "Verbose output of CUDA modules" ON)
 
 #========================
 # Dependencies Setup
@@ -111,7 +111,7 @@ endif()
 # set(CUDA_INCLUDE_DIRS ${CUDA_TOOLKIT_ROOT_DIR}/${CUDA_INSTALL_TARGET_DIR}/include)
 
 # set flags for TensorRT availability
-## TODO: auto find
+## TODO: auto find TRT
 if(${CMAKE_HOST_SYSTEM_PROCESSOR} STREQUAL  "aarch64")
   set(TENSORRT_INCLUDE_DIRS /usr/include/aarch64-linux-gnu/)
   set(TENSORRT_LIBRARY_DIRS /usr/lib/aarch64-linux-gnu/)
@@ -238,14 +238,19 @@ rclcpp_components_register_node(bevdet_node
   EXECUTABLE ${PROJECT_NAME}_node
 )
 
-# none ROS demo
-# cuda_add_executable(${PROJECT_NAME}_demo
-#   src/bevdet_demo.cpp
-# )
 
-# target_link_libraries(${PROJECT_NAME}_demo
-#   # libnvinfer.so
-# )
+# none ROS standalone demo #
+cuda_add_executable(${PROJECT_NAME}_demo
+  src/bevdet_demo.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_demo
+  libnvinfer.so
+)
+
+
+# onnx->engine export tool #
+# TODO: add_exe()
 
 ### ROS2 ###
 if(rclcpp_FOUND)
@@ -258,6 +263,7 @@ if(rclcpp_FOUND)
 
   install(TARGETS
     ${PROJECT_NAME}_node
+    ${PROJECT_NAME}_demo
 
     DESTINATION lib/${PROJECT_NAME}
   )
