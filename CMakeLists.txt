@@ -196,10 +196,15 @@ endif()
 
 # Build non-CUDA bevdet dependent parts
 ament_auto_add_library(bevdet_lib SHARED
-  src/bevdet/bevdet.cpp
-  src/bevdet/data.cpp
+  # confirm to keep
+  src/bevdet/bevdet.cpp   # 包含class bevdet
+
+  # unsure to remove
   src/bevdet/cpu_jpegdecoder.cpp
   src/bevdet/nvjpegdecoder.cpp
+
+  # TODO:remove
+  src/bevdet/data.cpp # 类DataLoader，加载数据，cpu/nvjpegdec解码，
 
   src/test.cpp
 )
@@ -239,34 +244,6 @@ rclcpp_components_register_node(bevdet_node
 )
 
 
-# none ROS standalone demo #
-cuda_add_executable(${PROJECT_NAME}_demo
-  src/bevdet_demo.cpp
-
-  # confirm to keep
-  src/bevdet/bevdet.cpp   # 包含class bevdet
-
-  # unsure to remove
-  src/bevdet/cpu_jpegdecoder.cpp
-  src/bevdet/nvjpegdecoder.cpp
-  src/bevdet/preprocess.cu 
-  src/bevdet/bevpool.cu 
-  src/bevdet/iou3d_nms.cu
-  src/bevdet/postprocess.cu
-  src/bevdet/grid_sampler.cu
-
-  # TODO:remove
-  src/bevdet/data.cpp # 类DataLoader，加载数据，cpu/nvjpegdec解码，
-)
-
-target_link_libraries(${PROJECT_NAME}_demo
-  yaml-cpp
-  libnvinfer.so
-  libjpeg.so
-  ${OpenCV_LIBS}
-)
-
-
 # onnx->engine export tool #
 # TODO: add_exe()
 
@@ -281,7 +258,6 @@ if(rclcpp_FOUND)
 
   install(TARGETS
     ${PROJECT_NAME}_node
-    ${PROJECT_NAME}_demo
 
     DESTINATION lib/${PROJECT_NAME}
   )
