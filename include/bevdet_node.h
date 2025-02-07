@@ -37,7 +37,6 @@ using std::chrono::high_resolution_clock;
 using std::chrono::duration;
 using namespace std::chrono_literals; // 500ms
 
-// TODO: change class name to BEVDet_Node
 class BEVDet_Node : public rclcpp::Node, public BEVDet
 {
 public:
@@ -85,7 +84,7 @@ private:
 
     // sync 6 compressed cam imgs
     using SyncCpPolicy = message_filters::sync_policies::ApproximateTime<
-        sensor_msgs::msg::PointCloud2, 
+        // sensor_msgs::msg::PointCloud2, 
         sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage,
         sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage,
         sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage>;
@@ -101,7 +100,7 @@ private:
         const sensor_msgs::msg::Image::ConstSharedPtr & img_br_msg
     );
 
-    void callbackCompressed(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
+    void callbackCompressed(//const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
         const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fl_msg,
         const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_f_msg,
         const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fr_msg,

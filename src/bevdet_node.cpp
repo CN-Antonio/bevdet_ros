@@ -91,12 +91,19 @@ BEVDet_Node::BEVDet_Node(const rclcpp::NodeOptions & node_options):
 
     // ==================  Set subscribers and publishers ========================= //
     sub_cloud_top_.subscribe(this, "/LIDAR_TOP",  rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_fl_.subscribe(this, "~/input/image_fl", rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_f_.subscribe(this, "~/input/image_f", rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_fr_.subscribe(this, "~/input/image_fr", rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_bl_.subscribe(this, "~/input/image_bl", rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_b_.subscribe(this, "~/input/image_b", rclcpp::QoS{1}.get_rmw_qos_profile());
-    sub_img_br_.subscribe(this, "~/input/image_br", rclcpp::QoS{1}.get_rmw_qos_profile());
+    // sub_img_fl_.subscribe(this, "~/input/image_fl", rclcpp::QoS{1}.get_rmw_qos_profile());
+    // sub_img_f_.subscribe(this, "~/input/image_f", rclcpp::QoS{1}.get_rmw_qos_profile());
+    // sub_img_fr_.subscribe(this, "~/input/image_fr", rclcpp::QoS{1}.get_rmw_qos_profile());
+    // sub_img_bl_.subscribe(this, "~/input/image_bl", rclcpp::QoS{1}.get_rmw_qos_profile());
+    // sub_img_b_.subscribe(this, "~/input/image_b", rclcpp::QoS{1}.get_rmw_qos_profile());
+    // sub_img_br_.subscribe(this, "~/input/image_br", rclcpp::QoS{1}.get_rmw_qos_profile());
+// CompressedImage
+    sub_cpimg_fl_.subscribe(this, "~/input/image_fl", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_cpimg_f_.subscribe(this, "~/input/image_f", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_cpimg_fr_.subscribe(this, "~/input/image_fr", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_cpimg_bl_.subscribe(this, "~/input/image_bl", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_cpimg_b_.subscribe(this, "~/input/image_b", rclcpp::QoS{1}.get_rmw_qos_profile());
+    sub_cpimg_br_.subscribe(this, "~/input/image_br", rclcpp::QoS{1}.get_rmw_qos_profile());
 
     sync_queue_size_ = declare_parameter<int>("sync_queue_size", 60);   // 10 for each img
     // Create publishers and subscribers
@@ -105,19 +112,18 @@ BEVDet_Node::BEVDet_Node(const rclcpp::NodeOptions & node_options):
     using std::placeholders::_5;using std::placeholders::_6;
     // using std::placeholders::_7;
 // IF RGB Img
-    sync_ptr_ = std::make_shared<Sync>(SyncPolicy(sync_queue_size_), 
-        // sub_cloud_top_,
-        sub_img_fl_, sub_img_f_, sub_img_fr_,
-        sub_img_b_, sub_img_bl_, sub_img_br_);
-    sync_ptr_->registerCallback(
-        std::bind(&BEVDet_Node::callback, this, _1, _2, _3, _4, _5, _6));
+    // sync_ptr_ = std::make_shared<Sync>(SyncPolicy(sync_queue_size_), 
+    //     // sub_cloud_top_,
+    //     sub_img_fl_, sub_img_f_, sub_img_fr_,
+    //     sub_img_b_, sub_img_bl_, sub_img_br_);
+    // sync_ptr_->registerCallback(
+    //     std::bind(&BEVDet_Node::callback, this, _1, _2, _3, _4, _5, _6));
 // IF Compressed Img
-    // sync_cp_ptr_ = std::make_shared<SyncCp>(SyncCpPolicy(sync_queue_size_), 
-    //     sub_cloud_top_,
-    //     sub_cpimg_fl_, sub_cpimg_f_, sub_cpimg_fr_,
-    //     sub_cpimg_b_, sub_cpimg_bl_, sub_cpimg_br_);
-    // sync_cp_ptr_->registerCallback(
-    //     std::bind(&BEVDet_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6, _7));
+    sync_cp_ptr_ = std::make_shared<SyncCp>(SyncCpPolicy(sync_queue_size_), 
+        sub_cpimg_fl_, sub_cpimg_f_, sub_cpimg_fr_,
+        sub_cpimg_b_, sub_cpimg_bl_, sub_cpimg_br_);
+    sync_cp_ptr_->registerCallback(
+        std::bind(&BEVDet_Node::callbackCompressed, this, _1, _2, _3, _4, _5, _6));
 
     pub_stitched_img = create_publisher<sensor_msgs::msg::Image>(
         "/output/object", rclcpp::QoS{1});
@@ -244,7 +250,7 @@ void BEVDet_Node::callback(
 }
 
 void BEVDet_Node::callbackCompressed(
-    const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
+    // const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg_cloud, 
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fl_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_f_msg,
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_fr_msg,
@@ -253,7 +259,9 @@ void BEVDet_Node::callbackCompressed(
     const sensor_msgs::msg::CompressedImage::ConstSharedPtr & img_br_msg)
 {
     RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "new CompressedImg callback");
+    return;
 
+    // TODO: replace opencv
     cv::Mat img_fl, img_f, img_fr, img_bl, img_b, img_br;
     std::vector<cv::Mat> imgs;
     // CompressedImg need toCvCopy!!!

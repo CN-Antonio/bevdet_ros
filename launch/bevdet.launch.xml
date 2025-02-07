@@ -4,15 +4,14 @@
   <arg name="data_param_path" default=""/>
   <arg name="model_param_path" default=""/>
 
-  <arg name="input/cam_front_left" default="/CAM_FRONT_LEFT/image_raw"/>
-  <arg name="input/cam_front" default="/CAM_FRONT/image_raw"/>
-  <arg name="input/cam_front_right" default="/CAM_FRONT_RIGHT/image_raw"/>
-  <arg name="input/cam_back_left" default="/CAM_BACK_LEFT/image_raw"/>
-  <arg name="input/cam_back" default="/CAM_BACK/image_raw"/>
-  <arg name="input/cam_back_right" default="/CAM_BACK_RIGHT/image_raw"/>
+  <arg name="input/cam_front_left" default="/CAM_FRONT_LEFT/image_rect_compressed"/>
+  <arg name="input/cam_front" default="/CAM_FRONT/image_rect_compressed"/>
+  <arg name="input/cam_front_right" default="/CAM_FRONT_RIGHT/image_rect_compressed"/>
+  <arg name="input/cam_back_left" default="/CAM_BACK_LEFT/image_rect_compressed"/>
+  <arg name="input/cam_back" default="/CAM_BACK/image_rect_compressed"/>
+  <arg name="input/cam_back_right" default="/CAM_BACK_RIGHT/image_rect_compressed"/>
 
   
-  <arg name="configure" default="$(find-pkg-share bevdet_ros)/config/bevdet/configure.yaml"/>
   <arg name="imgstage" default="$(find-pkg-share bevdet_ros)/model/img_stage_lt_d_fp16.engine"/>
   <arg name="bevstage" default="$(find-pkg-share bevdet_ros)/model/bev_stage_lt_d_fp16.engine"/>
   
