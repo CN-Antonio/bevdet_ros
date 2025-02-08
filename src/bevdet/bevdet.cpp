@@ -1,3 +1,7 @@
+/* 
+ * TODO: bevdet中移除YAML参数读取，改为上层(node)赋值
+*/
+
 #include <iostream>
 #include <cstdio>
 #include <fstream>

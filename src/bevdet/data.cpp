@@ -220,9 +220,16 @@ int read_sample(std::vector<std::string> &imgs_file, std::vector<std::vector<cha
     return EXIT_SUCCESS;
 }
 
-
+// TODO: merge to bevdet_node.cpp
 Eigen::Translation3f fromYamlTrans(YAML::Node x){
     std::vector<float> trans = x.as<std::vector<float>>();
+    return Eigen::Translation3f(trans[0], trans[1], trans[2]);
+}
+
+Eigen::Translation3f fromVectorTrans(std::vector<double> trans) {
+    if (trans.size() != 3) {
+        throw std::invalid_argument("Vector must contain 3 elements");
+    }
     return Eigen::Translation3f(trans[0], trans[1], trans[2]);
 }
 

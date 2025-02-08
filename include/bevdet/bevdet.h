@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <yaml-cpp/yaml.h>
+#include <yaml-cpp/yaml.h> // TODO: remove/replace
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -151,7 +151,7 @@ protected:
                          float* output_bev,
                          cudaStream_t stream);
 
-    // configure.yaml
+    // TODO: remove - configure.yaml
     std::string config_file;
 
     std::vector<Eigen::Matrix3f> cams_intrin;

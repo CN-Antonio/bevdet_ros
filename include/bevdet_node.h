@@ -52,6 +52,7 @@ protected:
     int img_h_;
     uchar* imgs_dev_ = nullptr; 
 private:
+    void ROSInitParams(void);  // get ros params with <declare_parameters>
     // ROS Init
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_stitched_img; // test
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_top;

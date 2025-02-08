@@ -132,9 +132,9 @@ BEVDet_Node::BEVDet_Node(const rclcpp::NodeOptions & node_options):
     markers = create_publisher<visualization_msgs::msg::MarkerArray>(
         "~/output/markers", rclcpp::QoS{1});
 
+    /* ================ set Data params ================ */
+    ROSInitParams();    // replace InitParams(config_file);
     return;
-
-    /* set Data params */
     // this->get_parameter("configure", config_file);
     // this->get_parameter("imgstage", imgstage_file);
     // this->get_parameter("bevstage", bevstage_file);
@@ -199,6 +199,37 @@ BEVDet_Node::BEVDet_Node(const rclcpp::NodeOptions & node_options):
 
 BEVDet_Node::~BEVDet_Node(){
     RCLCPP_INFO(rclcpp::get_logger("bevdet_node"), "Destructing BEVDet_Node");
+}
+
+void BEVDet_Node::ROSInitParams(void)
+{
+    /* Data */
+    std::string ns = "";
+
+    N_img = declare_parameter<int>("N");
+    
+    ns = "cams.";
+    const auto cams_name = declare_parameter<std::vector<std::string>>(ns + "cam_name");
+
+    cams_intrin.clear();
+    cams2ego_rot.clear();
+    cams2ego_trans.clear();
+
+    cams_intrin.resize(cams_name.size());
+    cams2ego_rot.resize(cams_name.size());
+    cams2ego_trans.resize(cams_name.size());
+
+    for(size_t i = 0; i < cams_name.size(); i++){
+        ns = "cams." + cams_name[i] + ".";
+        // cams_intrin[i] = fromYamlMatrix3f(config["cams"][cams_name[i]]["cam_intrinsic"]);
+        // cams_intrin[i] = fromYamlMatrix3f(this->declare_parameter<std::string>("cams", cams_name[i], "cam_intrinsic"));
+        // cams2ego_rot[i] = fromYamlQuater(config["cams"][cams_name[i]]["sensor2ego_rotation"]);//nuscenes.get_cams2ego_rot();
+        std::vector<double> trans = this->declare_parameter<std::vector<double>>(ns + "sensor2ego_translation");
+        cams2ego_trans[i] = fromVectorTrans(trans);
+    }
+
+
+    /* Model */
 }
 
 /* Image RGB */
