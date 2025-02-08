@@ -1,3 +1,6 @@
+> fork from [BEVDet-ROS-TensorRT](https://github.com/linClubs/BEVDet-ROS-TensorRT)  
+> Will move to [bevdet_vendor](https://github.com/CN-Antonio/bevdet_vendor)
+
 cmake编译安装3.29.2(3.17+)
 ```
 tar zxvf cmake && cd cmake
