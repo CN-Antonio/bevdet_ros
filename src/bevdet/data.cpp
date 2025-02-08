@@ -226,13 +226,6 @@ Eigen::Translation3f fromYamlTrans(YAML::Node x){
     return Eigen::Translation3f(trans[0], trans[1], trans[2]);
 }
 
-Eigen::Translation3f fromVectorTrans(std::vector<double> trans) {
-    if (trans.size() != 3) {
-        throw std::invalid_argument("Vector must contain 3 elements");
-    }
-    return Eigen::Translation3f(trans[0], trans[1], trans[2]);
-}
-
 Eigen::Quaternion<float> fromYamlQuater(YAML::Node x){
     std::vector<float> quater = x.as<std::vector<float>>();
     return Eigen::Quaternion<float>(quater[0], quater[1], quater[2], quater[3]);
@@ -247,4 +240,26 @@ Eigen::Matrix3f fromYamlMatrix3f(YAML::Node x){
         }
     }
     return mat;
+}
+
+Eigen::Quaternion<float> fromVectorQuater(std::vector<double> quater) {
+    if (quater.size() != 4) {
+        throw std::invalid_argument("Quaternion vector must contain exactly 4 elements");
+    }
+    
+    // Convert from double to float and construct quaternion
+    // Order: w, x, y, z (Eigen's default quaternion constructor order)
+    return Eigen::Quaternion<float>(
+        static_cast<float>(quater[0]),  // w
+        static_cast<float>(quater[1]),  // x
+        static_cast<float>(quater[2]),  // y
+        static_cast<float>(quater[3])   // z
+    );
+}
+
+Eigen::Translation3f fromVectorTrans(std::vector<double> trans) {
+    if (trans.size() != 3) {
+        throw std::invalid_argument("Vector must contain 3 elements");
+    }
+    return Eigen::Translation3f(trans[0], trans[1], trans[2]);
 }

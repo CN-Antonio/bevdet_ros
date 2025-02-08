@@ -222,10 +222,9 @@ void BEVDet_Node::ROSInitParams(void)
     for(size_t i = 0; i < cams_name.size(); i++){
         ns = "cams." + cams_name[i] + ".";
         // cams_intrin[i] = fromYamlMatrix3f(config["cams"][cams_name[i]]["cam_intrinsic"]);
-        // cams_intrin[i] = fromYamlMatrix3f(this->declare_parameter<std::string>("cams", cams_name[i], "cam_intrinsic"));
-        // cams2ego_rot[i] = fromYamlQuater(config["cams"][cams_name[i]]["sensor2ego_rotation"]);//nuscenes.get_cams2ego_rot();
-        std::vector<double> trans = this->declare_parameter<std::vector<double>>(ns + "sensor2ego_translation");
-        cams2ego_trans[i] = fromVectorTrans(trans);
+        // cams_intrin[i] = fromYamlMatrix3f(this->declare_parameter<std::string>(ns + "cam_intrinsic"));
+        cams2ego_rot[i] = fromVectorQuater(this->declare_parameter<std::vector<double>>(ns + "sensor2ego_rotation"));
+        cams2ego_trans[i] = fromVectorTrans(this->declare_parameter<std::vector<double>>(ns + "sensor2ego_translation"));
     }
 
 

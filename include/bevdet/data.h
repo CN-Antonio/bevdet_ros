@@ -109,6 +109,8 @@ Eigen::Translation3f fromYamlTrans(YAML::Node x);
 Eigen::Quaternion<float> fromYamlQuater(YAML::Node x);
 Eigen::Matrix3f fromYamlMatrix3f(YAML::Node x);
 
+Eigen::Matrix3f fromVectorMatrix3f(std::vector<double> matrix);
+Eigen::Quaternion<float> fromVectorQuater(std::vector<double> quater);
 Eigen::Translation3f fromVectorTrans(std::vector<double> trans);
 
 
