@@ -3,21 +3,25 @@
 <package format="3">
   <name>bevdet_ros</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="dongyixiao2001@163.com">antonio</maintainer>
+  <description>The bevdet tensorrt package</description>
+
+  <maintainer email="dongyixiao2001@163.com">Dong Yixiao</maintainer>
   <license>TODO: License declaration</license>
 
-  <buildtool_depend>ament_cmake</buildtool_depend><!-- todo: remove -->
   <buildtool_depend>ament_cmake_auto</buildtool_depend>
 
   <depend>rclcpp</depend>
   <depend>rclcpp_components</depend>
   <depend>message_filters</depend>
   <depend>sensor_msgs</depend>
-  <depend>geometry_msgs</depend>
+  <!-- <depend>geometry_msgs</depend> -->
+  <depend>nav_msgs</depend>
   <depend>visualization_msgs</depend>
 
-  <depend>cv_bridge</depend>
+  <!-- TODO: replace yaml with ros params -->
+  <depend>yaml-cpp</depend>
+
+  <depend>cv_bridge</depend> <!-- Temporarily Use -->
   <depend>pcl_conversions</depend>
   <depend>pcl_ros</depend>
 

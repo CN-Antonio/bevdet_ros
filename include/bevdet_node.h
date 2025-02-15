@@ -9,7 +9,7 @@
 
 #include "bevdet.h"
 
-#include "cpu_jpegdecoder.h"
+// #include "cpu_jpegdecoder.h"
 
 #ifdef ROS2_FOUND
 #include <rclcpp/rclcpp.hpp>
@@ -17,16 +17,19 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <geometry_msgs/msg/point32.hpp>
+// #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include <cv_bridge/cv_bridge.h>
 #include <pcl_conversions/pcl_conversions.h>  // rosmsg2pcl
 
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h> // sync 6 cam imgs
 #include <message_filters/sync_policies/approximate_time.h> // 时间相近同步
+
+// TODO: remove
+#include <cv_bridge/cv_bridge.h>
 #elif ROS_FOUND
 #endif // ROS/2_FOUND
 
@@ -45,18 +48,18 @@ public:
 
     // for test
     void TestNuscenes(YAML::Node &config);
+    void TestSample();
     void publish_imgs(const std::vector<std::vector<char>> &cam_data);
 protected:
-    size_t img_N_;
-    int img_w_; 
-    int img_h_;
-    uchar* imgs_dev_ = nullptr; 
+    uchar* imgs_dev_ = nullptr;
 private:
     void ROSInitParams(void);  // get ros params with <declare_parameters>
     // ROS Init
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr pub_stitched_img; // test
     rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_cloud_top;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr markers;
+    // pose msg sub
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr sub_pose_;
     // synced msgs sub
     message_filters::Subscriber<sensor_msgs::msg::PointCloud2> sub_cloud_top_{}; 
     // RGB
@@ -91,6 +94,8 @@ private:
         sensor_msgs::msg::CompressedImage, sensor_msgs::msg::CompressedImage>;
     using SyncCp = message_filters::Synchronizer<SyncCpPolicy>;
     typename std::shared_ptr<SyncCp> sync_cp_ptr_;
+
+    void callback_odom(const nav_msgs::msg::Odometry::SharedPtr msg);
 
     void callback(
         const sensor_msgs::msg::Image::ConstSharedPtr & img_fl_msg,

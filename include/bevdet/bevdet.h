@@ -9,8 +9,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include <opencv2/opencv.hpp>
-#include <opencv2/dnn.hpp>
+// #include <opencv2/opencv.hpp>
+// #include <opencv2/dnn.hpp>
 
 #include "common.h"
 #include "postprocess.h"
@@ -81,6 +81,16 @@ struct adjFrame{
         ego2global_trans[last] = _ego2global_trans;
         buffer_num = std::min(buffer_num + 1, n);
     }
+    void saveFrameBuffer(const float* curr_buffer,
+                const Eigen::Quaternion<float> &_ego2global_rot,
+                const Eigen::Translation3f &_ego2global_trans){
+        last = (last + 1) % n;
+        CHECK_CUDA(cudaMemcpy(adj_buffer + last * map_size * bev_channel, curr_buffer,
+                                map_size * bev_channel * sizeof(float), cudaMemcpyDeviceToDevice));
+        ego2global_rot[last] = _ego2global_rot;
+        ego2global_trans[last] = _ego2global_trans;
+        buffer_num = std::min(buffer_num + 1, n);
+    }
     const float* getFrameBuffer(int idx){
         idx = (-idx + last + n) % n;
         return adj_buffer + idx * map_size * bev_channel;
@@ -113,7 +123,7 @@ struct adjFrame{
 class BEVDet{
 public:
     BEVDet(){}
-    BEVDet(const std::string &config_file, int n_img);
+    // BEVDet(const std::string &config_file, int n_img);
     BEVDet(const std::string &config_file, int n_img,      
                                         std::vector<Eigen::Matrix3f> _cams_intrin, 
                                         std::vector<Eigen::Quaternion<float>> _cams2ego_rot, 
@@ -132,6 +142,7 @@ protected:
     void InitParams(const std::string &config_file);
     void InitViewTransformer();
     int InitEngine(const std::string &imgstage_file, const std::string &bevstage_file);
+    int InitEngine(const std::string &engine_file);
     int DeserializeTRTEngine(const std::string &engine_file, nvinfer1::ICudaEngine **engine_ptr);
     void MallocDeviceMemory();
 
@@ -143,6 +154,7 @@ protected:
                      const Eigen::Quaternion<float> &ego2global_rot,
                      const Eigen::Translation3f &ego2global_trans,
                      float* bev_buffer);
+    void GetAdjFrameFeature(float* bev_buffer);
     void AlignBEVFeature(const Eigen::Quaternion<float> &curr_ego2global_rot,
                          const Eigen::Quaternion<float> &adj_ego2global_rot,
                          const Eigen::Translation3f &curr_ego2global_trans,
@@ -152,7 +164,10 @@ protected:
                          cudaStream_t stream);
 
     // TODO: remove - configure.yaml
-    std::string config_file;
+    // std::string config_file;
+
+    Eigen::Quaternion<float> ego2global_rot;
+    Eigen::Translation3f ego2global_trans;
 
     std::vector<Eigen::Matrix3f> cams_intrin;
     std::vector<Eigen::Quaternion<float>> cams2ego_rot;
